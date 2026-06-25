@@ -1,26 +1,188 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Enable class-based dark mode for Tailwind v4 */
+@custom-variant dark (&:is(.dark *));
+
+/* === Dark Theme (default) === */
+:root,
+[data-theme="dark"] {
+  --background: #0b0b0c;
+  --foreground: #ffffff;
+  --surface: #1e1e22;
+  --text-muted: #a0a0ab;
+  --text-secondary: #d1d5db;
+  --border: #2d2d35;
+  --border-light: #3d3d45;
+
+  --accent-blue: #00f0ff;
+  --accent-blue-dark: #00bcd4;
+  --accent-gold: #d4af37;
+  --accent-red: #ff3b30;
+
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+
+  --hover-bg: #2d2d35;
+  --surface-secondary: #252529;
+
+  /* Shadow for cards */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+
+  /* Background image */
+  --bg-overlay: rgba(11, 11, 12, 0.6);
 }
 
-@theme inline {
+/* === Light Theme === */
+:root[data-theme="light"] {
+  --background: #f7f8fa;
+  --foreground: #1a1a2e;
+  --surface: #ffffff;
+  --text-muted: #64748b;
+  --text-secondary: #475569;
+  --border: #e5e7eb;
+  --border-light: #f1f3f6;
+
+  --accent-blue: #0369a1;
+  --accent-blue-dark: #075985;
+  --accent-gold: #b8860b;
+  --accent-red: #dc2626;
+
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+
+  --hover-bg: #f1f3f6;
+  --surface-secondary: #f1f3f6;
+
+  /* Softer shadows for light mode */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.1);
+
+  color-scheme: light;
+
+  /* Background image */
+  --bg-overlay: rgba(247, 248, 250, 0.78);
+}
+
+/* Logo theme switching handled in React component */
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-surface: var(--surface);
+  --color-muted: var(--text-muted);
+  --color-text-secondary: var(--text-secondary);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-dark: var(--accent-blue-dark);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-red: var(--accent-red);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-hover-bg: var(--hover-bg);
+  --color-surface-secondary: var(--surface-secondary);
+
+  --font-heading: var(--font-syne), var(--font-jakarta), sans-serif;
+  --font-sans: var(--font-inter), sans-serif;
 }
 
 body {
-  background: var(--background);
+  position: relative;
+  z-index: 0;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: color 0.4s ease;
+  min-height: 100vh;
+  background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), url('/Dark-BG.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+[data-theme="light"] body {
+  background-image: linear-gradient(var(--bg-overlay), var(--bg-overlay)), url('/Light-BG.png');
+}
+/* Base resets & luxury aesthetics */
+::selection {
+  background-color: var(--accent-gold);
+  color: #000;
+}
+
+/* Elegant scrollbar with theme support */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+  transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Light theme-specific overrides for select/option elements */
+[data-theme="light"] select option {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+@layer utilities {
+  .bg-300\% {
+    background-size: 300% 300%;
+  }
+
+  /* Smooth theme transitions */
+  @media (prefers-reduced-motion: no-preference) {
+    * {
+      @apply transition-colors duration-300;
+    }
+
+    button,
+    a,
+    input,
+    textarea,
+    select {
+      @apply transition-colors duration-300;
+    }
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradient 8s ease infinite;
 }

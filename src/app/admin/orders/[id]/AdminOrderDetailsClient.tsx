@@ -1,0 +1,259 @@
+"use client";
+
+import { useState } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from "@/components/ui";
+import { ArrowLeft, RefreshCw, Printer } from "lucide-react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { generateAndDownloadInvoice, InvoiceData } from "@/lib/services/invoice";
+import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
+
+const ORDER_STATUSES = [
+  "Pending",
+  "Accepted",
+  "Processing",
+  "Shipped",
+  "Delivered",
+  "Received",
+  "Cancelled",
+  "Returned"
+];
+
+export default function AdminOrderDetailsClient({ order }: { order: any }) {
+  const [status, setStatus] = useState(order.status);
+  const [loading, setLoading] = useState(false);
+  const supabase = createBrowserClient();
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    setLoading(true);
+    
+    // 1. Update Order Status
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: newStatus })
+      .eq("id", order.id);
+
+    if (error) {
+      alert("Failed to update order status.");
+      setLoading(false);
+      return;
+    }
+
+    setStatus(newStatus);
+
+    // 2. Insert Notification
+    if (order.user_id) {
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: order.user_id,
+          title: `Order Status: ${newStatus}`,
+          message: `Your order #${order.id.substring(0, 8).toUpperCase()} is now ${newStatus}.`
+        });
+    }
+
+    // 3. Send Email Notification
+    const emailSent = await sendOrderStatusUpdateEmail(
+      order.user?.email || "guest@example.com",
+      order.user?.full_name || "Valued Customer",
+      order.id,
+      newStatus,
+      `Your order has been updated to ${newStatus}. Thank you for shopping with FJ Store Pakistan!`
+    );
+
+    if (emailSent) {
+      console.log(`[ADMIN ORDER] Status update email sent for order ${order.id}`);
+    } else {
+      console.warn(`[ADMIN ORDER] Status update email failed for order ${order.id} (status still updated)`);
+    }
+
+    setLoading(false);
+  };
+
+  const handlePrint = () => {
+    const addressStr = order.addresses
+      ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
+      : "No address provided";
+
+    const invoiceData: InvoiceData = {
+      orderId: order.id,
+      orderDate: order.created_at,
+      customerName: order.user?.full_name || "Guest",
+      customerEmail: order.user?.email || "",
+      shippingAddress: addressStr,
+      items: order.order_items.map((item: any) => ({
+        name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
+        quantity: item.quantity,
+        price: Number(item.price_at_time),
+        total: Number(item.price_at_time) * item.quantity,
+      })),
+      subtotal: Number(order.subtotal),
+      tax: Number(order.tax),
+      shipping: Number(order.shipping_cost),
+      discount: Number(order.discount),
+      grandTotal: Number(order.total),
+      status: order.status,
+    };
+
+    generateAndDownloadInvoice(invoiceData, order.user_id || "guest", supabase);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/orders">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <ArrowLeft size={18} />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground dark:text-foreground dark:text-white mb-1">
+              Order #{order.id.split("-")[0].toUpperCase()}
+            </h1>
+            <p className="text-muted text-sm">
+              Placed on {format(new Date(order.created_at), "MMM d, yyyy 'at' h:mm a")}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrint} className="gap-2">
+            <Printer size={16} />
+            Print Order
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {order.order_items.map((item: any) => (
+                  <div key={item.id} className="flex justify-between items-center py-2 border-b border-border dark:border-border/50 last:border-0">
+                    <div>
+                      <p className="font-medium text-foreground dark:text-foreground dark:text-white">{item.products?.name}</p>
+                      {item.product_variants && (
+                        <p className="text-xs text-muted mt-1">
+                          {item.product_variants.name}: {item.product_variants.value}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-foreground dark:text-foreground dark:text-white">PKR {(Number(item.price_at_time) * 277).toLocaleString()} x {item.quantity}</p>
+                      <p className="font-medium text-accent-gold">PKR {(Number(item.price_at_time) * item.quantity * 277).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted">Subtotal</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.subtotal) * 277).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Shipping</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.shipping_cost) * 277).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Tax</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.tax) * 277).toLocaleString()}</span>
+              </div>
+              {Number(order.discount) > 0 && (
+                <div className="flex justify-between text-success">
+                  <span>Discount</span>
+                  <span>-PKR {(Number(order.discount) * 277).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="pt-2 mt-2 border-t border-border dark:border-border/50 flex justify-between font-bold text-lg">
+                <span className="text-foreground dark:text-foreground dark:text-white">Total</span>
+                <span className="text-accent-gold">PKR {(Number(order.total) * 277).toLocaleString()}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Badge
+                  variant={
+                    status === "Delivered" || status === "Received" ? "success" :
+                    status === "Cancelled" || status === "Returned" ? "destructive" :
+                    status === "Shipped" ? "luxury" : "outline"
+                  }
+                  className="px-3 py-1 text-sm"
+                >
+                  {status}
+                </Badge>
+              </div>
+
+              <div className="pt-4 border-t border-border dark:border-border/50 space-y-3">
+                <p className="text-sm text-muted font-medium">Update Status</p>
+                <div className="flex flex-wrap gap-2">
+                  {ORDER_STATUSES.map((s) => (
+                    <Button
+                      key={s}
+                      variant={s === status ? "luxury" : "outline"}
+                      size="sm"
+                      onClick={() => handleStatusUpdate(s)}
+                      disabled={loading || s === status}
+                      className="text-xs"
+                    >
+                      {loading && s !== status ? <RefreshCw className="animate-spin mr-1" size={12} /> : null}
+                      {s}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div>
+                <p className="text-muted mb-1">Name</p>
+                <p className="text-foreground dark:text-white font-medium">{order.user?.full_name || "Guest"}</p>
+              </div>
+              <div>
+                <p className="text-muted mb-1">Email</p>
+                <p className="text-foreground dark:text-foreground dark:text-white">{order.user?.email || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-muted mb-1">Shipping Address</p>
+                {order.addresses ? (
+                  <div className="text-foreground dark:text-foreground dark:text-white space-y-0.5">
+                    <p>{order.addresses.address_line_1}</p>
+                    {order.addresses.address_line_2 && <p>{order.addresses.address_line_2}</p>}
+                    <p>{order.addresses.city}, {order.addresses.state} {order.addresses.postal_code}</p>
+                    <p>{order.addresses.country}</p>
+                  </div>
+                ) : (
+                  <p className="text-muted">No address provided</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
