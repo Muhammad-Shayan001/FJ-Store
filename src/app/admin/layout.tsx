@@ -16,14 +16,16 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  // Double check admin role
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, email")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
+  const role = profile?.role?.toString().toLowerCase();
+  const isAdmin = role === "admin" || role === "superadmin" || role === "owner" || profile?.email === process.env.ADMIN_EMAIL;
+
+  if (!isAdmin) {
     redirect("/");
   }
 

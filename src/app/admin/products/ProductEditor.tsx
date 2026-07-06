@@ -1,21 +1,90 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
 import { Button, Input, Card, CardContent } from "@/components/ui";
-import { ArrowLeft, Save, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
+
+type ProductLike = {
+  id?: string;
+  name?: string;
+  slug?: string;
+  sku?: string;
+  category_id?: string;
+  short_description?: string;
+  full_description?: string;
+  brand?: string;
+  regular_price?: number;
+  sale_price?: string | number | null;
+  cost_price?: string | number | null;
+  tax_rate?: number;
+  stock_quantity?: number;
+  stock_status?: string;
+  warehouse?: string;
+  is_published?: boolean;
+  skin_type?: string[] | null;
+  shade?: string;
+  expiry_date?: string | null;
+  calories?: string | number | null;
+  stone_type?: string;
+  seo_title?: string;
+  seo_description?: string;
+  seo_keywords?: string[] | null;
+  tags?: string[] | null;
+};
+
+type CategoryLike = {
+  id?: string;
+  name?: string;
+};
+
+type AiPreviewData = {
+  title?: string;
+  short_description?: string;
+  full_description?: string;
+  seo_title?: string;
+  seo_description?: string;
+  keywords?: string[];
+  tags?: string[];
+};
+
+type ProductFormData = {
+  name: string;
+  slug: string;
+  sku: string;
+  category_id: string;
+  short_description: string;
+  full_description: string;
+  brand: string;
+  regular_price: number;
+  sale_price: string | number | null;
+  cost_price: string | number | null;
+  tax_rate: number;
+  stock_quantity: number;
+  stock_status: string;
+  warehouse: string;
+  is_published: boolean;
+  skin_type: string;
+  shade: string;
+  expiry_date: string;
+  calories: string;
+  stone_type: string;
+  seo_title: string;
+  seo_description: string;
+  seo_keywords: string;
+  tags: string;
+};
 
 export default function ProductEditor({
   product,
   categories,
   onClose,
 }: {
-  product: any;
-  categories: any[];
+  product?: ProductLike;
+  categories: CategoryLike[];
   onClose: (refresh?: boolean) => void;
 }) {
   const [activeTab, setActiveTab] = useState("basic");
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProductFormData>({
     name: product?.name || "",
     slug: product?.slug || "",
     sku: product?.sku || "",
@@ -47,14 +116,24 @@ export default function ProductEditor({
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPreview, setShowAiPreview] = useState(false);
-  const [aiPreviewData, setAiPreviewData] = useState<any>(null);
-  const supabase = createBrowserClient();
+  const [aiPreviewData, setAiPreviewData] = useState<AiPreviewData | null>(null);
+  const [notice, setNotice] = useState<{ type: "error" | "success"; message: string } | null>(null);
+
+  const formatNoticeMessage = (message: string) => {
+    const normalized = message.toLowerCase();
+    if (normalized.includes("service role") || normalized.includes("service-role")) {
+      return "Product actions are currently unavailable because the Supabase service-role credentials are not configured. Please contact the site administrator to enable backend product syncing.";
+    }
+
+    return message;
+  };
 
   const handleAiGenerate = async () => {
     if (!formData.name) {
-      alert("Please enter a product name first.");
+      setNotice({ type: "error", message: "Please enter a product name first." });
       return;
     }
+    setNotice(null);
     setAiLoading(true);
     try {
       const categoryName = categories.find((c) => c.id === formData.category_id)?.name || "";
@@ -71,14 +150,15 @@ export default function ProductEditor({
       });
       const data = await res.json();
       if (data.error) {
-        alert("AI Error: " + data.error);
+        setNotice({ type: "error", message: formatNoticeMessage(data.error) });
       } else {
+        setNotice(null);
         setAiPreviewData(data);
         setShowAiPreview(true);
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to generate AI content.");
+      setNotice({ type: "error", message: "We could not generate AI content right now. Please try again in a moment." });
     }
     setAiLoading(false);
   };
@@ -105,30 +185,47 @@ export default function ProductEditor({
 
   const handleSave = async () => {
     setSaving(true);
+    setNotice(null);
     try {
-      const payload: any = { ...formData };
-      payload.skin_type = payload.skin_type
-        ? payload.skin_type.split(",").map((s: string) => s.trim())
-        : null;
-      payload.tags = payload.tags
-        ? payload.tags.split(",").map((s: string) => s.trim())
-        : null;
-      payload.seo_keywords = payload.seo_keywords
-        ? payload.seo_keywords.split(",").map((s: string) => s.trim())
-        : null;
+      const payload: Record<string, unknown> = { ...formData };
+      payload.skin_type =
+        typeof payload.skin_type === "string" && payload.skin_type
+          ? payload.skin_type.split(",").map((s) => s.trim())
+          : null;
+      payload.tags =
+        typeof payload.tags === "string" && payload.tags
+          ? payload.tags.split(",").map((s) => s.trim())
+          : null;
+      payload.seo_keywords =
+        typeof payload.seo_keywords === "string" && payload.seo_keywords
+          ? payload.seo_keywords.split(",").map((s) => s.trim())
+          : null;
       if (!payload.sale_price) payload.sale_price = null;
       if (!payload.cost_price) payload.cost_price = null;
       if (!payload.expiry_date) payload.expiry_date = null;
       if (!payload.calories) payload.calories = null;
 
-      if (product) {
-        await supabase.from("products").update(payload).eq("id", product.id);
-      } else {
-        await supabase.from("products").insert(payload);
+      const response = await fetch("/api/products", {
+        method: product ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, id: product?.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Failed to save product.");
       }
-      onClose(true);
+
+      setNotice({ type: "success", message: "Product saved successfully." });
+      window.setTimeout(() => {
+        onClose(true);
+      }, 800);
     } catch (error) {
       console.error(error);
+      setNotice({
+        type: "error",
+        message: formatNoticeMessage(error instanceof Error ? error.message : "Failed to save product."),
+      });
     }
     setSaving(false);
   };
@@ -160,6 +257,32 @@ export default function ProductEditor({
           </Button>
         </div>
       </div>
+
+      {notice && (
+        <div
+          className={`rounded-2xl border px-4 py-3 shadow-sm ${notice.type === "error" ? "border-red-500/30 bg-red-500/10 text-red-700 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"}`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              {notice.type === "error" ? <AlertCircle size={18} className="mt-0.5" /> : <CheckCircle2 size={18} className="mt-0.5" />}
+              <div>
+                <p className="font-semibold">
+                  {notice.type === "error" ? "We hit a snag" : "Everything looks good"}
+                </p>
+                <p className="text-sm opacity-90">{notice.message}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="rounded-full p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+              aria-label="Dismiss message"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-border/50 pb-2">
         {tabs.map((t) => (
@@ -402,7 +525,7 @@ export default function ProductEditor({
                 Fill only fields relevant to this product type.
               </div>
 
-              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/[0.02]">
+              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/2">
                 <h4 className="text-accent-blue font-medium">Cosmetics</h4>
                 <div className="space-y-2">
                   <label className="text-sm text-foreground dark:text-white">Shade</label>
@@ -422,7 +545,7 @@ export default function ProductEditor({
                 </div>
               </div>
 
-              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/[0.02]">
+              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/2">
                 <h4 className="text-success font-medium">Food / Edibles</h4>
                 <div className="space-y-2">
                   <label className="text-sm text-foreground dark:text-white">Expiry Date</label>
@@ -443,7 +566,7 @@ export default function ProductEditor({
                 </div>
               </div>
 
-              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/[0.02] col-span-2 md:col-span-1">
+              <div className="space-y-4 p-4 border border-border/50 rounded-xl bg-white/2 col-span-2 md:col-span-1">
                 <h4 className="text-accent-gold font-medium">Jewelry / Bangles</h4>
                 <div className="space-y-2">
                   <label className="text-sm text-foreground dark:text-white">Stone Type</label>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -25,6 +26,7 @@ export default function AdminNotificationsPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const router = useRouter();
   const supabase = createBrowserClient();
 
   // Form State
@@ -61,39 +63,29 @@ export default function AdminNotificationsPage() {
     setSending(true);
 
     try {
-      if (targetUser === "all") {
-        // Send notification to all users
-        // Since we cannot loop on all users safely in a single batch in some server setups,
-        // we can insert a notification for each user profile.
-        const inserts = users.map((u) => ({
-          user_id: u.id,
-          title,
-          message,
-          is_read: false,
-        }));
+      const payload = targetUser === "all"
+        ? { userIds: users.map((u) => u.id), title, message, isRead: false }
+        : { userId: targetUser, title, message, isRead: false };
 
-        const { error } = await supabase.from("notifications").insert(inserts);
-        if (error) throw error;
-        alert(`Successfully broadcasted notification to ${inserts.length} users!`);
-      } else {
-        // Send notification to a single user
-        const { error } = await supabase.from("notifications").insert({
-          user_id: targetUser,
-          title,
-          message,
-          is_read: false,
-        });
-        if (error) throw error;
-        alert("Notification sent successfully!");
+      const response = await fetch("/api/notifications/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to send notification.");
       }
 
+      alert(result.message || "Notification sent successfully!");
       setTitle("");
       setMessage("");
       setTargetUser("all");
       fetchData();
     } catch (error) {
       console.error(error);
-      alert("Failed to send notification.");
+      alert(error instanceof Error ? error.message : "Failed to send notification.");
     } finally {
       setSending(false);
     }

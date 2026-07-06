@@ -34,60 +34,36 @@ export const useProductStore = create<ProductState>((set, get) => ({
 
   fetchProducts: async (filters) => {
     set({ isLoading: true, error: null });
-    const supabase = createClient();
 
     try {
-      let query = supabase
-        .from("products")
-        .select(
-          `
-          *,
-          images:product_images(*),
-          variants:product_variants(*),
-          category:categories(*)
-        `,
-          { count: "exact" }
-        )
-        .eq("is_published", true);
-
-      // Apply basic filters if any
-      if (filters?.categories && filters.categories.length > 0) {
-        query = query.in("category.name", filters.categories); /* if using names, better id, wait */
-      } else if (filters?.category) {
-        query = query.eq("category.slug", filters.category);
-      }
+      const params = new URLSearchParams({
+        published: "true",
+        page: String(filters?.page || 1),
+        limit: String(filters?.limit || 12),
+        sort: filters?.sort || "newest",
+      });
 
       if (filters?.keyword) {
-        query = query.ilike("name", `%${filters.keyword}%`);
+        params.set("keyword", filters.keyword);
       }
-
+      if (filters?.category) {
+        params.set("category", filters.category);
+      }
       if (filters?.minPrice !== undefined) {
-        query = query.gte("regular_price", filters.minPrice);
+        params.set("minPrice", String(filters.minPrice));
       }
-
       if (filters?.maxPrice !== undefined) {
-        query = query.lte("regular_price", filters.maxPrice);
+        params.set("maxPrice", String(filters.maxPrice));
       }
 
-      if (filters?.sort === "price_asc") {
-        query = query.order("regular_price", { ascending: true });
-      } else if (filters?.sort === "price_desc") {
-        query = query.order("regular_price", { ascending: false });
-      } else {
-        query = query.order("created_at", { ascending: false }); // Newest default
+      const response = await fetch(`/api/products?${params.toString()}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load products.");
       }
 
-      // Pagination
-      const page = filters?.page || 1;
-      const limit = filters?.limit || 12;
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-
-      const { data, count, error } = await query;
-
-      if (error) throw error;
-      set({ products: data as unknown as Product[], totalCount: count || 0 });
+      set({ products: data.products as Product[], totalCount: data.totalCount || 0 });
     } catch (err: any) {
       set({ error: err.message });
     } finally {

@@ -3,7 +3,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormValues } from "@/lib/validations/auth";
-import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -30,24 +29,22 @@ export function LoginForm() {
     setIsLoading(true);
     setError(null);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("your-project")) {
-      setError("Authentication is currently unavailable. Please try again shortly.");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
 
-      if (error) {
-        setError(error.message);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.error || "Login failed. Please try again.");
         setIsLoading(false);
         return;
       }
@@ -55,8 +52,13 @@ export function LoginForm() {
       setIsLoading(false);
       router.push(redirect);
       router.refresh();
-    } catch {
-      setError("We could not reach the authentication service. Please check your connection and try again.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown authentication error.";
+      setError(
+        message.includes("configured")
+          ? "Authentication is currently unavailable. Please contact support."
+          : "We could not reach the authentication service. Please check your connection and try again."
+      );
       setIsLoading(false);
     }
   };

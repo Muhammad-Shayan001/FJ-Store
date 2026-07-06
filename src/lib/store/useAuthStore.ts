@@ -27,16 +27,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (session?.user) {
         set({ user: session.user });
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single();
+        const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
         if (profile) set({ profile });
       }
     } catch (error) {
       console.error("Auth init error", error);
+      set({ user: null, profile: null });
     } finally {
       set({ isLoading: false });
     }

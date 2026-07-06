@@ -143,26 +143,74 @@ export default function AccountContent() {
               </div>
             </div>
 
-            <Button variant={activeTab === "profile" ? "luxury" : "ghost"} className="w-full justify-start gap-3" onClick={() => setActiveTab("profile")}>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 border transition-all ${
+                activeTab === "profile"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("profile")}
+            >
               <User size={18} /> Profile details
             </Button>
-            <Button variant={activeTab === "orders" ? "luxury" : "ghost"} className="w-full justify-start gap-3" onClick={() => setActiveTab("orders")}>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 border transition-all ${
+                activeTab === "orders"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("orders")}
+            >
               <Package size={18} /> Order History
             </Button>
-            <Button variant={activeTab === "addresses" ? "luxury" : "ghost"} className="w-full justify-start gap-3" onClick={() => setActiveTab("addresses")}>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 border transition-all ${
+                activeTab === "addresses"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("addresses")}
+            >
               <MapPin size={18} /> Saved Addresses
             </Button>
-            <Button variant={activeTab === "wishlist" ? "luxury" : "ghost"} className="w-full justify-start gap-3" onClick={() => setActiveTab("wishlist")}>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 border transition-all ${
+                activeTab === "wishlist"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("wishlist")}
+            >
               <Heart size={18} /> Wishlist
             </Button>
-            <Button variant={activeTab === "reviews" ? "luxury" : "ghost"} className="w-full justify-start gap-3" onClick={() => setActiveTab("reviews")}>
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 border transition-all ${
+                activeTab === "reviews"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("reviews")}
+            >
               <Star size={18} /> My Reviews
             </Button>
-            <Button variant={activeTab === "notifications" ? "luxury" : "ghost"} className="w-full justify-start gap-3 relative" onClick={() => setActiveTab("notifications")}>
+            <Button
+              variant="ghost"
+              className={`relative w-full justify-start gap-3 border transition-all ${
+                activeTab === "notifications"
+                  ? "border-accent-gold/70 bg-accent-gold/10 text-foreground shadow-sm dark:border-accent-gold/80 dark:bg-accent-gold/15"
+                  : "border-transparent text-muted hover:border-border hover:bg-surface/70 hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("notifications")}
+            >
               <Bell size={18} /> Notifications
-              {notifications.filter(n => !n.is_read).length > 0 && (
+              {notifications.filter((n) => !n.is_read).length > 0 && (
                 <span className="absolute right-3 bg-error text-foreground dark:text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
-                  {notifications.filter(n => !n.is_read).length}
+                  {notifications.filter((n) => !n.is_read).length}
                 </span>
               )}
             </Button>

@@ -9,6 +9,10 @@ function createTransporter() {
   console.log("[TRANSPORTER] Email configured:", email ? `${email.substring(0, 8)}...` : "NOT SET");
   console.log("[TRANSPORTER] Password configured:", password ? "YES (length: " + password.length + ")" : "NOT SET");
 
+  if (password && password.includes("your-app-password")) {
+    throw new Error("Please replace the placeholder SMTP password in .env.local with your real Gmail app password.");
+  }
+
   if (!email || !password) {
     const error = new Error(
       "Missing Gmail credentials. Check .env.local:\n" +
@@ -21,7 +25,9 @@ function createTransporter() {
 
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: email,
         pass: password,
