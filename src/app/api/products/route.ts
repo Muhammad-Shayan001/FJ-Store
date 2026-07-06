@@ -110,7 +110,7 @@ export async function GET(request: Request) {
     const page = Number.parseInt(searchParams.get("page") || "1", 10);
     const limit = Number.parseInt(searchParams.get("limit") || "12", 10);
 
-    let query = supabase
+    let query: any = supabase
       .from("products")
       .select(
         `
@@ -199,7 +199,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
 
     const supabase = getServiceRoleClient();
 
-    let response: { error?: { message?: string }; data?: unknown } | undefined;
+    let response: { error: { message?: string } | null; data: unknown };
     if (mode === "update") {
       response = await supabase.from("products").update(payload).eq("id", payload.id).select().single();
     } else {
@@ -207,7 +207,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
     }
 
     if (response?.error) {
-      return NextResponse.json({ error: response.error.message || "Failed to save product." }, { status: 500 });
+      return NextResponse.json({ error: response.error?.message || "Failed to save product." }, { status: 500 });
     }
 
     return NextResponse.json({ product: response?.data });

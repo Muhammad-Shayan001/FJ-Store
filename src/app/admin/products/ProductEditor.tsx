@@ -56,8 +56,8 @@ type ProductFormData = {
   full_description: string;
   brand: string;
   regular_price: number;
-  sale_price: string | number | null;
-  cost_price: string | number | null;
+  sale_price: string;
+  cost_price: string;
   tax_rate: number;
   stock_quantity: number;
   stock_status: string;
@@ -93,8 +93,8 @@ export default function ProductEditor({
     full_description: product?.full_description || "",
     brand: product?.brand || "",
     regular_price: product?.regular_price || 0,
-    sale_price: product?.sale_price || "",
-    cost_price: product?.cost_price || "",
+    sale_price: product?.sale_price != null ? String(product.sale_price) : "",
+    cost_price: product?.cost_price != null ? String(product.cost_price) : "",
     tax_rate: product?.tax_rate || 0,
     stock_quantity: product?.stock_quantity || 0,
     stock_status: product?.stock_status || "in_stock",
@@ -104,7 +104,7 @@ export default function ProductEditor({
     skin_type: product?.skin_type?.join(", ") || "",
     shade: product?.shade || "",
     expiry_date: product?.expiry_date || "",
-    calories: product?.calories || "",
+    calories: product?.calories != null ? String(product.calories) : "",
     stone_type: product?.stone_type || "",
     // SEO Fields
     seo_title: product?.seo_title || "",
@@ -200,10 +200,25 @@ export default function ProductEditor({
         typeof payload.seo_keywords === "string" && payload.seo_keywords
           ? payload.seo_keywords.split(",").map((s) => s.trim())
           : null;
-      if (!payload.sale_price) payload.sale_price = null;
-      if (!payload.cost_price) payload.cost_price = null;
+      if (typeof payload.sale_price === "string" && payload.sale_price.trim()) {
+        const parsedSalePrice = Number.parseFloat(payload.sale_price);
+        payload.sale_price = Number.isNaN(parsedSalePrice) ? null : parsedSalePrice;
+      } else {
+        payload.sale_price = null;
+      }
+      if (typeof payload.cost_price === "string" && payload.cost_price.trim()) {
+        const parsedCostPrice = Number.parseFloat(payload.cost_price);
+        payload.cost_price = Number.isNaN(parsedCostPrice) ? null : parsedCostPrice;
+      } else {
+        payload.cost_price = null;
+      }
       if (!payload.expiry_date) payload.expiry_date = null;
-      if (!payload.calories) payload.calories = null;
+      if (typeof payload.calories === "string" && payload.calories.trim()) {
+        const parsedCalories = Number.parseFloat(payload.calories);
+        payload.calories = Number.isNaN(parsedCalories) ? null : parsedCalories;
+      } else if (!payload.calories) {
+        payload.calories = null;
+      }
 
       const response = await fetch("/api/products", {
         method: product ? "PUT" : "POST",
@@ -610,7 +625,7 @@ export default function ProductEditor({
                   <p className="text-xs text-muted mb-1">Full Description</p>
                   <div
                     className="text-foreground dark:text-white text-sm prose prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: aiPreviewData.full_description }}
+                    dangerouslySetInnerHTML={{ __html: aiPreviewData.full_description || "" }}
                   />
                 </div>
               </div>
