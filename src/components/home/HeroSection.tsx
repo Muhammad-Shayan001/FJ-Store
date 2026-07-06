@@ -4,94 +4,120 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 
-const highlights = ["Luxury cosmetics", "Handcrafted elegance", "Gourmet indulgence"];
-
 export function HeroSection() {
   return (
-    <section className="relative flex min-h-screen items-center overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.16),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(0,240,255,0.12),_transparent_35%)] pt-20 dark:bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.16),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(0,240,255,0.12),_transparent_35%)]">
-      <div className="absolute inset-0 z-0 overflow-hidden bg-background/95">
-        <div className="absolute -top-[20%] -right-[8%] h-[60vw] w-[60vw] rounded-full bg-accent-gold/15 blur-[140px]" />
-        <div className="absolute -bottom-[20%] -left-[10%] h-[58vw] w-[58vw] rounded-full bg-accent-blue/10 blur-[140px]" />
+    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-background">
+      {/* Background gradients */}
+      <div className="absolute inset-0 bg-transparent overflow-hidden z-0">
+        <div className="absolute -top-[30%] -right-[10%] w-[70vw] h-[70vw] rounded-full bg-accent-gold/10 blur-[120px]" />
+        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] rounded-full bg-accent-blue/10 blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-accent-gold/10 via-background to-background" />
       </div>
 
-      <div className="container relative z-10 mx-auto grid items-center gap-12 px-4 py-16 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:py-24">
-        <div className="relative z-20 max-w-2xl">
+      <div className="container mx-auto px-4 md:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
+        {/* LEFT SIDE: Copy & CTA */}
+        <div className="max-w-2xl relative z-20">
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: "easeOut" }}
+            transition={{ duration: 1, ease: "easeOut" }}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.7 }}
-              className="mb-8 inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/80 px-4 py-2 shadow-sm backdrop-blur dark:border-accent-gold/20 dark:bg-[#121212]/80"
+              transition={{ delay: 0.3, duration: 0.8 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent-gold/30 bg-accent-gold/10 backdrop-blur-sm mb-8"
             >
-              <Sparkles className="h-4 w-4 text-accent-gold" />
-              <span className="text-xs font-medium uppercase tracking-[0.24em] text-accent-gold">
+              <Sparkles className="w-4 h-4 text-accent-gold" />
+              <span className="text-accent-gold tracking-[0.2em] text-xs uppercase font-medium">
                 The Epitome of Elegance
               </span>
             </motion.div>
-
-            <h1 className="mb-6 font-heading text-5xl font-bold leading-[0.95] text-foreground sm:text-6xl lg:text-7xl xl:text-8xl">
-              Curated for <br />
-              <span className="bg-gradient-to-r from-accent-gold via-amber-300 to-accent-gold bg-300% bg-clip-text text-transparent animate-gradient">
-                Modern Luxury
+            
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-6 leading-tight font-heading">
+              Redefining <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-gold via-yellow-200 to-accent-gold bg-300% animate-gradient">
+                Luxury
               </span>
             </h1>
-            <p className="mb-8 max-w-xl text-lg leading-relaxed text-text-secondary sm:text-xl">
-              Discover a refined edit of premium cosmetics, artisan jewelry, and indulgent delicacies—crafted with purpose, elegance, and justice in every detail.
+            <p className="text-lg md:text-xl text-text-muted mb-10 leading-relaxed font-sans max-w-xl">
+              Immerse yourself in a world of premium cosmetics, handcrafted masterpieces, and gourmet delicacies. Experience FJ Store—where justice is done to true luxury.
             </p>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Link href="/shop" className="group inline-flex w-full items-center justify-center gap-3 rounded-full bg-foreground px-7 py-3.5 text-sm font-semibold text-background transition hover:scale-[1.01] sm:w-auto">
-                Shop The Collection
-                <ArrowRight size={18} className="transition group-hover:translate-x-1" />
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <Link href="/shop" className="relative group inline-block w-full sm:w-auto">
+                <div className="absolute -inset-1 bg-gradient-to-r from-accent-gold via-yellow-400 to-accent-gold rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                <button className="relative w-full sm:w-auto px-10 py-4 bg-foreground rounded-xl text-background font-medium flex items-center justify-center gap-3 hover:scale-[1.02] transition-all border border-accent-gold/40 hover:border-accent-gold shadow-2xl">
+                  Shop The Collection
+                  <ArrowRight
+                    size={18}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
+                </button>
               </Link>
-              <Link href="/category/cosmetics" className="inline-flex items-center justify-center rounded-full border border-border bg-white/80 px-7 py-3.5 text-sm font-semibold text-foreground backdrop-blur transition hover:border-accent-gold/60 hover:text-accent-gold dark:bg-[#121212]/80">
-                Explore Curated Edit
+              <Link href="/category/cosmetics" className="group text-foreground hover:text-accent-gold font-medium flex items-center gap-2 transition-colors">
+                Explore Categories
+                <div className="w-8 h-[1px] bg-foreground group-hover:bg-accent-gold transition-colors ml-2" />
               </Link>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {highlights.map((item) => (
-                <span key={item} className="rounded-full border border-border/70 bg-white/70 px-3 py-2 text-sm text-text-secondary shadow-sm backdrop-blur dark:bg-[#121212]/70">
-                  {item}
-                </span>
-              ))}
             </div>
           </motion.div>
         </div>
 
-        <div className="relative z-10 mt-6 w-full lg:mt-0">
+        {/* RIGHT SIDE: Premium Video Showcase */}
+        <div className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] perspective-1000 z-10 mt-12 lg:mt-0">
           <motion.div
-            className="mx-auto max-w-[600px]"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.15, ease: "easeOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[600px] max-h-[600px]"
+            initial={{ opacity: 0, scale: 0.95, rotateY: 10 }}
+            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+            transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
           >
-            <div className="absolute inset-0 -translate-x-3 -translate-y-3 rounded-[2.2rem] bg-gradient-to-tr from-accent-gold/20 via-transparent to-accent-blue/20 blur-3xl" />
-            <div className="relative rounded-[2rem] border border-border/70 bg-white/75 p-3 shadow-[0_24px_90px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:border-accent-gold/20 dark:bg-[#121212]/80">
-              <div className="relative overflow-hidden rounded-[1.5rem] border border-white/20">
-                <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                <img
-                  src="/Firefly Create a premium luxury animated hero video for -FJ Store – For Justice- that focuses ONLY o.gif"
-                  alt="FJ Store premium luxury showcase"
-                  className="h-full w-full object-cover transition-transform duration-1000 hover:scale-105"
-                />
-                <div className="absolute bottom-0 left-0 right-0 z-20 p-5 sm:p-6">
-                  <div className="max-w-[16rem] rounded-2xl border border-white/20 bg-black/45 p-4 backdrop-blur-md">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-accent-gold">
-                      Exclusive Drop
-                    </p>
-                    <p className="text-lg font-semibold text-white">FJ Signature Collection</p>
-                  </div>
+            {/* Decorative elements behind the video */}
+            <div className="absolute -inset-4 bg-gradient-to-tr from-accent-gold/20 via-transparent to-accent-blue/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+            
+            {/* The Video/GIF Container */}
+            <div className="relative w-full h-full rounded-[2rem] overflow-hidden border border-accent-gold/30 shadow-[0_0_50px_rgba(212,175,55,0.15)] group bg-surface">
+              {/* Overlay gradient for depth */}
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent z-10 pointer-events-none"></div>
+              
+              <img 
+                src="/Firefly Create a premium luxury animated hero video for -FJ Store – For Justice- that focuses ONLY o.gif" 
+                alt="FJ Store Premium Luxury" 
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              />
+              
+              {/* Floating badges/elements over the video to make it dynamic */}
+              <motion.div 
+                className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.8 }}
+              >
+                <div className="bg-surface/80 backdrop-blur-md border border-accent-gold/30 p-5 rounded-2xl shadow-2xl">
+                  <p className="text-accent-gold text-xs font-bold uppercase tracking-wider mb-1">Exclusive</p>
+                  <p className="text-foreground text-lg font-medium">FJ Signature Collection</p>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         </div>
       </div>
+
+      {/* Scroll Indicator */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5, duration: 1 }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20 hidden md:flex"
+      >
+        <span className="text-foreground/50 text-xs tracking-widest uppercase">Scroll to Explore</span>
+        <div className="w-[1px] h-12 bg-foreground/20 relative overflow-hidden">
+          <motion.div
+            className="absolute top-0 left-0 w-full h-1/2 bg-accent-gold"
+            animate={{ y: [0, 48, 0] }}
+            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+          />
+        </div>
+      </motion.div>
     </section>
   );
 }

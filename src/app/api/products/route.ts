@@ -3,11 +3,11 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 function getServiceRoleClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !serviceRoleKey || supabaseUrl.includes("your-project") || serviceRoleKey.includes("your-service-role-key")) {
     throw new Error(
-      "The product service is currently unavailable because the Supabase service-role credentials are not configured. Please contact the site administrator."
+      "The product service is currently unavailable because the Supabase credentials are not configured. Please contact the site administrator."
     );
   }
 
