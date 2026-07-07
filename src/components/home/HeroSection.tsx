@@ -8,10 +8,10 @@ export function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-background">
       {/* Background gradients */}
-      <div className="absolute inset-0 bg-transparent overflow-hidden z-0">
-        <div className="absolute -top-[30%] -right-[10%] w-[70vw] h-[70vw] rounded-full bg-accent-gold/10 blur-[120px]" />
-        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] rounded-full bg-accent-blue/10 blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-accent-gold/10 via-background to-background" />
+      <div className="absolute inset-0 z-0 overflow-hidden bg-transparent">
+        <div className="absolute top-[-30%] right-[-10%] h-[70vw] w-[70vw] rounded-full bg-accent-gold/10 blur-[120px]" />
+        <div className="absolute bottom-[-20%] left-[-10%] h-[60vw] w-[60vw] rounded-full bg-accent-blue/10 blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-accent-gold/10 via-background to-background" />
       </div>
 
       <div className="container mx-auto px-4 md:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
@@ -34,9 +34,9 @@ export function HeroSection() {
               </span>
             </motion.div>
             
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-6 leading-tight font-heading">
+            <h1 className="mb-6 font-heading text-5xl font-bold leading-tight text-foreground md:text-7xl lg:text-8xl">
               Redefining <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-gold via-yellow-200 to-accent-gold bg-300% animate-gradient">
+              <span className="animate-gradient bg-300% bg-linear-to-r from-accent-gold via-yellow-200 to-accent-gold bg-clip-text text-transparent">
                 Luxury
               </span>
             </h1>
@@ -46,8 +46,8 @@ export function HeroSection() {
 
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <Link href="/shop" className="relative group inline-block w-full sm:w-auto">
-                <div className="absolute -inset-1 bg-gradient-to-r from-accent-gold via-yellow-400 to-accent-gold rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                <button className="relative w-full sm:w-auto px-10 py-4 bg-foreground rounded-xl text-background font-medium flex items-center justify-center gap-3 hover:scale-[1.02] transition-all border border-accent-gold/40 hover:border-accent-gold shadow-2xl">
+                <div className="absolute -inset-1 rounded-xl bg-linear-to-r from-accent-gold via-yellow-400 to-accent-gold opacity-40 blur transition duration-1000 group-hover:opacity-100 group-hover:duration-200"></div>
+                <button className="relative flex w-full items-center justify-center gap-3 rounded-xl border border-accent-gold/40 bg-foreground px-10 py-4 font-medium text-background shadow-2xl transition-all hover:scale-[1.02] hover:border-accent-gold sm:w-auto">
                   Shop The Collection
                   <ArrowRight
                     size={18}
@@ -57,27 +57,27 @@ export function HeroSection() {
               </Link>
               <Link href="/category/cosmetics" className="group text-foreground hover:text-accent-gold font-medium flex items-center gap-2 transition-colors">
                 Explore Categories
-                <div className="w-8 h-[1px] bg-foreground group-hover:bg-accent-gold transition-colors ml-2" />
+                <div className="ml-2 h-px w-8 bg-foreground transition-colors group-hover:bg-accent-gold" />
               </Link>
             </div>
           </motion.div>
         </div>
 
         {/* RIGHT SIDE: Premium Video Showcase */}
-        <div className="relative w-full h-[500px] md:h-[600px] lg:h-[700px] perspective-1000 z-10 mt-12 lg:mt-0">
+        <div className="relative z-10 mt-12 h-[500px] w-full perspective-1000 md:h-[600px] lg:mt-0 lg:h-[700px]">
           <motion.div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[600px] max-h-[600px]"
+            className="absolute left-1/2 top-1/2 h-full max-h-[600px] w-full max-w-[600px] -translate-x-1/2 -translate-y-1/2"
             initial={{ opacity: 0, scale: 0.95, rotateY: 10 }}
             animate={{ opacity: 1, scale: 1, rotateY: 0 }}
             transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
           >
             {/* Decorative elements behind the video */}
-            <div className="absolute -inset-4 bg-gradient-to-tr from-accent-gold/20 via-transparent to-accent-blue/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+            <div className="absolute -inset-4 animate-pulse rounded-full bg-linear-to-tr from-accent-gold/20 via-transparent to-accent-blue/20 blur-3xl" style={{ animationDuration: "4s" }}></div>
             
             {/* The Video/GIF Container */}
-            <div className="relative w-full h-full rounded-[2rem] overflow-hidden border border-accent-gold/30 shadow-[0_0_50px_rgba(212,175,55,0.15)] group bg-surface">
+            <div className="group relative h-full w-full overflow-hidden rounded-4xl border border-accent-gold/30 bg-surface shadow-[0_0_50px_rgba(212,175,55,0.15)]">
               {/* Overlay gradient for depth */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent z-10 pointer-events-none"></div>
+              <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-background/90 via-background/20 to-transparent"></div>
               
               <img 
                 src="/Firefly Create a premium luxury animated hero video for -FJ Store – For Justice- that focuses ONLY o.gif" 
@@ -107,10 +107,10 @@ export function HeroSection() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20 hidden md:flex"
+        className="absolute bottom-8 left-1/2 z-20 flex hidden -translate-x-1/2 flex-col items-center gap-2 md:flex"
       >
         <span className="text-foreground/50 text-xs tracking-widest uppercase">Scroll to Explore</span>
-        <div className="w-[1px] h-12 bg-foreground/20 relative overflow-hidden">
+        <div className="relative h-12 w-px overflow-hidden bg-foreground/20">
           <motion.div
             className="absolute top-0 left-0 w-full h-1/2 bg-accent-gold"
             animate={{ y: [0, 48, 0] }}

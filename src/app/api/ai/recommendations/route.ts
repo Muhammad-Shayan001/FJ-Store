@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
+export const dynamic = "force-dynamic";
 import { getGeminiClient, GEMINI_MODEL } from "@/lib/ai/gemini";
 import { createClient } from "@/lib/supabase/server";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest, context: any) {
   try {
     const body = await req.json();
     const { userId, category, viewedProducts, purchaseHistory, limit = 5 } = body;
