@@ -1,20 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
-function getAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createSupabaseClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+async function getAdminClient() {
+  return await createClient();
 }
 
 // GET /api/categories
 export async function GET() {
-  const supabase = getAdminClient();
+  const supabase = await getAdminClient();
   const { data, error } = await supabase.from("categories").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ categories: data });
@@ -28,7 +21,7 @@ export async function POST(request: Request) {
     if (!name || !slug) {
       return NextResponse.json({ error: "Name and slug are required." }, { status: 400 });
     }
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient();
     const { data, error } = await supabase
       .from("categories")
       .insert({ name, slug, description: description || null, image_url: image_url || null, is_active: true })
@@ -47,7 +40,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { id, name, slug, description, image_url, is_active } = body;
     if (!id) return NextResponse.json({ error: "ID is required." }, { status: 400 });
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient();
     const { data, error } = await supabase
       .from("categories")
       .update({ name, slug, description: description || null, image_url: image_url || null, is_active: is_active ?? true })
@@ -67,7 +60,7 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID is required." }, { status: 400 });
-    const supabase = getAdminClient();
+    const supabase = await getAdminClient();
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

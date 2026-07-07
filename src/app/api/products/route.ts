@@ -1,22 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 
-function getServiceRoleClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey || supabaseUrl.includes("your-project") || serviceRoleKey.includes("your-service-role-key")) {
-    throw new Error(
-      "The product service is currently unavailable because the Supabase credentials are not configured. Please contact the site administrator."
-    );
-  }
-
-  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+async function getServiceRoleClient() {
+  return await createClient();
 }
 
 function sanitizeProductPayload(payload: Record<string, unknown>) {
@@ -97,7 +83,7 @@ function sanitizeProductPayload(payload: Record<string, unknown>) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = await getServiceRoleClient();
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug");
     const published = searchParams.get("published") !== "false";
@@ -191,7 +177,7 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Product id is required." }, { status: 400 });
-    const supabase = getServiceRoleClient();
+    const supabase = await getServiceRoleClient();
     // Delete related images first
     await supabase.from("product_images").delete().eq("product_id", id);
     const { error } = await supabase.from("products").delete().eq("id", id);
@@ -214,7 +200,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
       }
     }
 
-    const supabase = getServiceRoleClient();
+    const supabase = await getServiceRoleClient();
 
     let response: { error: { message?: string } | null; data: any };
     if (mode === "update") {
