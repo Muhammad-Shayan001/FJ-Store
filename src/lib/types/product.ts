@@ -60,6 +60,11 @@ export type ProductImage = {
   url: string;
   is_thumbnail: boolean;
   display_order: number;
+  provider?: string;
+  public_id?: string;
+  file_size?: number;
+  mime_type?: string;
+  created_at?: string;
 };
 
 export type ProductVariant = {

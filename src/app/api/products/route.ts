@@ -190,6 +190,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
   try {
     const body = await request.json().catch(() => ({}));
     const payload = sanitizeProductPayload(body || {});
+    const images = Array.isArray(body.images) ? body.images : [];
 
     if (mode === "update") {
       if (!payload.id) {
@@ -199,7 +200,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
 
     const supabase = getServiceRoleClient();
 
-    let response: { error: { message?: string } | null; data: unknown };
+    let response: { error: { message?: string } | null; data: any };
     if (mode === "update") {
       response = await supabase.from("products").update(payload).eq("id", payload.id).select().single();
     } else {
@@ -208,6 +209,32 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
 
     if (response?.error) {
       return NextResponse.json({ error: response.error?.message || "Failed to save product." }, { status: 500 });
+    }
+
+    const productId = response.data.id;
+
+    // Handle product images
+    if (productId) {
+      // Clear existing images for this product
+      await supabase.from("product_images").delete().eq("product_id", productId);
+
+      // Insert new images
+      if (images.length > 0) {
+        const imagePayloads = images.map((img: any, index: number) => ({
+          product_id: productId,
+          url: img.url,
+          is_thumbnail: img.is_thumbnail ?? (index === 0),
+          display_order: img.display_order ?? index,
+          provider: img.provider || "url",
+          public_id: img.public_id || null,
+          file_size: img.file_size || null,
+          mime_type: img.mime_type || null,
+        }));
+        const imageRes = await supabase.from("product_images").insert(imagePayloads);
+        if (imageRes.error) {
+          console.error("Failed to save product images:", imageRes.error);
+        }
+      }
     }
 
     return NextResponse.json({ product: response?.data });

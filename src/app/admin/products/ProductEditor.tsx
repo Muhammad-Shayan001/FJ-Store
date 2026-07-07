@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button, Input, Card, CardContent } from "@/components/ui";
 import { ArrowLeft, Save, Sparkles, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ProductImage } from "@/lib/types/product";
 
 type ProductLike = {
   id?: string;
@@ -72,6 +74,7 @@ type ProductFormData = {
   seo_description: string;
   seo_keywords: string;
   tags: string;
+  images: ProductImage[];
 };
 
 export default function ProductEditor({
@@ -111,6 +114,7 @@ export default function ProductEditor({
     seo_description: product?.seo_description || "",
     seo_keywords: product?.seo_keywords?.join(", ") || "",
     tags: product?.tags?.join(", ") || "",
+    images: (product as any)?.images || [],
   });
 
   const [saving, setSaving] = useState(false);
@@ -247,6 +251,7 @@ export default function ProductEditor({
 
   const tabs = [
     { id: "basic", label: "Basic Info" },
+    { id: "images", label: "Images" },
     { id: "content", label: "Content & Description" },
     { id: "pricing", label: "Pricing & Inventory" },
     { id: "seo", label: "SEO & Tags" },
@@ -384,6 +389,18 @@ export default function ProductEditor({
                   Publish Product (Visible to Customers)
                 </label>
               </div>
+            </div>
+          )}
+
+          {activeTab === "images" && (
+            <div className="space-y-6">
+              <h3 className="text-sm font-medium text-foreground dark:text-white mb-2">Product Gallery</h3>
+              <ImageUpload
+                multiple
+                existingImages={formData.images}
+                onUploadSuccess={(img) => setFormData(prev => ({ ...prev, images: [...prev.images, img] }))}
+                onRemove={(url) => setFormData(prev => ({ ...prev, images: prev.images.filter((i) => i.url !== url) }))}
+              />
             </div>
           )}
 
