@@ -43,9 +43,16 @@ ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read access to active coupons" ON coupons FOR SELECT USING (is_active = true);
-CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can view own payments" ON payments FOR SELECT USING (
-    EXISTS(SELECT 1 FROM orders WHERE orders.id = payments.order_id AND orders.user_id = auth.uid())
+DROP POLICY IF EXISTS "Allow public read access to active coupons" ON public.coupons;
+CREATE POLICY "Allow public read access to active coupons" ON public.coupons FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own payments" ON public.payments;
+CREATE POLICY "Users can view own payments" ON public.payments FOR SELECT USING (
+    EXISTS(SELECT 1 FROM public.orders WHERE public.orders.id = public.payments.order_id AND public.orders.user_id = auth.uid())
 );
