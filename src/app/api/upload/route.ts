@@ -6,12 +6,7 @@ import ImageKit from "imagekit";
 // It will automatically use the CLOUDINARY_URL environment variable if present.
 // Alternatively, we can explicitly configure it if needed.
 
-// Configure ImageKit
-const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "",
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "",
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "",
-});
+// Configure ImageKit initialization will happen lazily inside POST
 
 export async function POST(request: Request) {
   try {
@@ -52,6 +47,12 @@ export async function POST(request: Request) {
       console.warn("Cloudinary upload failed, falling back to ImageKit...", cloudinaryError);
 
       // 2. Fallback to ImageKit
+      const imagekit = new ImageKit({
+        publicKey: process.env.IMAGEKIT_PUBLIC_KEY || "dummy_public_key",
+        privateKey: process.env.IMAGEKIT_PRIVATE_KEY || "dummy_private_key",
+        urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "https://ik.imagekit.io/dummy",
+      });
+
       const imageKitResult = await imagekit.upload({
         file: buffer,
         fileName: file.name || "upload_image",
