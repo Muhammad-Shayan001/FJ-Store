@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -14,7 +13,7 @@ import {
   Input,
   Badge,
 } from "@/components/ui";
-import { Loader2, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 
 type Category = {
   id: string;
@@ -31,33 +30,44 @@ type Subcategory = {
   is_active: boolean;
 };
 
+type Notice = { type: "error" | "success"; message: string };
+
 export default function AdminSubcategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createBrowserClient();
-
-  // Modal State
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-
-  // Form State
   const [editingSub, setEditingSub] = useState<Subcategory | null>(null);
   const [formData, setFormData] = useState({ name: "", slug: "", category_id: "" });
+  const hasFetched = useRef(false);
+
+  const showNotice = (type: "error" | "success", message: string) => {
+    setNotice({ type, message });
+    setTimeout(() => setNotice(null), 4000);
+  };
 
   const fetchData = async () => {
     setLoading(true);
-    const [catRes, subRes] = await Promise.all([
-      supabase.from("categories").select("*").order("name"),
-      supabase.from("subcategories").select("*").order("name"),
-    ]);
-
-    if (catRes.data) setCategories(catRes.data);
-    if (subRes.data) setSubcategories(subRes.data);
+    try {
+      const [catRes, subRes] = await Promise.all([
+        fetch("/api/categories").then((r) => r.json()),
+        fetch("/api/subcategories").then((r) => r.json()),
+      ]);
+      if (catRes.categories) setCategories(catRes.categories);
+      if (subRes.subcategories) setSubcategories(subRes.subcategories);
+    } catch {
+      showNotice("error", "Failed to load data.");
+    }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      fetchData();
+    }
   }, []);
 
   const openModal = (sub: Subcategory | null = null) => {
@@ -71,28 +81,40 @@ export default function AdminSubcategoriesPage() {
   };
 
   const handleSave = async () => {
+    if (!formData.name.trim() || !formData.slug.trim() || !formData.category_id) {
+      showNotice("error", "Name, slug, and parent category are required.");
+      return;
+    }
+    setSaving(true);
     try {
-      if (editingSub) {
-        await supabase
-          .from("subcategories")
-          .update({ name: formData.name, slug: formData.slug, category_id: formData.category_id })
-          .eq("id", editingSub.id);
-      } else {
-        await supabase
-          .from("subcategories")
-          .insert({ name: formData.name, slug: formData.slug, category_id: formData.category_id });
-      }
+      const method = editingSub ? "PUT" : "POST";
+      const body = editingSub ? { id: editingSub.id, ...formData } : formData;
+      const res = await fetch("/api/subcategories", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save.");
+      showNotice("success", `Subcategory "${formData.name}" saved!`);
       setIsOpen(false);
       fetchData();
-    } catch (error) {
-      console.error(error);
+    } catch (e: any) {
+      showNotice("error", e.message);
     }
+    setSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this subcategory?")) {
-      await supabase.from("subcategories").delete().eq("id", id);
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete subcategory "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/subcategories?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showNotice("success", "Subcategory deleted.");
       fetchData();
+    } catch (e: any) {
+      showNotice("error", e.message || "Delete failed.");
     }
   };
 
@@ -108,6 +130,20 @@ export default function AdminSubcategoriesPage() {
           <Plus size={16} className="mr-2" /> Add Subcategory
         </Button>
       </div>
+
+      {/* Notice */}
+      {notice && (
+        <div
+          className={`rounded-xl px-4 py-3 flex items-center gap-3 text-sm font-medium ${
+            notice.type === "error"
+              ? "bg-red-500/10 border border-red-500/30 text-red-400"
+              : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+          }`}
+        >
+          {notice.type === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          {notice.message}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center p-20">
@@ -129,7 +165,7 @@ export default function AdminSubcategoriesPage() {
               {subcategories.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted py-8">
-                    No subcategories found.
+                    No subcategories found. Add your first one!
                   </TableCell>
                 </TableRow>
               )}
@@ -138,12 +174,10 @@ export default function AdminSubcategoriesPage() {
                 return (
                   <TableRow key={sub.id}>
                     <TableCell className="font-medium text-foreground dark:text-white">{sub.name}</TableCell>
-                    <TableCell className="text-accent-gold font-medium">
-                      {parent?.name || "Unknown"}
-                    </TableCell>
+                    <TableCell className="text-accent-gold font-medium">{parent?.name || "Unknown"}</TableCell>
                     <TableCell className="text-muted font-mono text-xs">{sub.slug}</TableCell>
                     <TableCell>
-                      <Badge variant="success">Active</Badge>
+                      <Badge variant={sub.is_active ? "success" : "outline"}>{sub.is_active ? "Active" : "Inactive"}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openModal(sub)}>
@@ -153,7 +187,7 @@ export default function AdminSubcategoriesPage() {
                         variant="ghost"
                         size="icon"
                         className="text-error hover:text-error hover:bg-error/10"
-                        onClick={() => handleDelete(sub.id)}
+                        onClick={() => handleDelete(sub.id, sub.name)}
                       >
                         <Trash2 size={16} />
                       </Button>
@@ -167,38 +201,30 @@ export default function AdminSubcategoriesPage() {
       )}
 
       {/* Modal */}
-      <Modal
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        title={editingSub ? "Edit Subcategory" : "Add Subcategory"}
-      >
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={editingSub ? "Edit Subcategory" : "Add Subcategory"}>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Parent Category</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Parent Category *</label>
             <select
               className="w-full mt-1 bg-surface/50 border border-border rounded-md h-10 px-3 text-foreground dark:text-white focus:outline-none focus:border-accent-gold"
               value={formData.category_id}
               onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
             >
-              <option value="" disabled>
-                Select a category
-              </option>
+              <option value="" disabled>Select a category</option>
               {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Name</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Name *</label>
             <Input
               value={formData.name}
               onChange={(e) =>
                 setFormData({
                   ...formData,
                   name: e.target.value,
-                  slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                  slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
                 })
               }
               placeholder="e.g. Lipsticks"
@@ -206,7 +232,7 @@ export default function AdminSubcategoriesPage() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Slug</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Slug *</label>
             <Input
               value={formData.slug}
               onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
@@ -218,9 +244,10 @@ export default function AdminSubcategoriesPage() {
             variant="luxury"
             className="w-full mt-4"
             onClick={handleSave}
-            disabled={!formData.category_id || !formData.name}
+            disabled={saving || !formData.category_id || !formData.name}
           >
-            Save Subcategory
+            {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+            {saving ? "Saving..." : "Save Subcategory"}
           </Button>
         </div>
       </Modal>

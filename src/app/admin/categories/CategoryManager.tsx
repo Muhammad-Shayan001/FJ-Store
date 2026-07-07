@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
 import {
   Table,
   TableBody,
@@ -14,12 +13,16 @@ import {
   Input,
   Badge,
 } from "@/components/ui";
-import { Loader2, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ProductImage } from "@/lib/types/product";
 
 type Category = {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
+  image_url: string | null;
   is_active: boolean;
 };
 
@@ -31,11 +34,14 @@ type Subcategory = {
   is_active: boolean;
 };
 
+type Notice = { type: "error" | "success"; message: string };
+
 export default function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createBrowserClient();
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   // Modal State
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
@@ -44,17 +50,27 @@ export default function CategoryManager() {
   // Form State
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [editingSub, setEditingSub] = useState<Subcategory | null>(null);
-  const [formData, setFormData] = useState({ name: "", slug: "", category_id: "" });
+  const [catForm, setCatForm] = useState({ name: "", slug: "", description: "", image_url: "" });
+  const [catImages, setCatImages] = useState<ProductImage[]>([]);
+  const [subForm, setSubForm] = useState({ name: "", slug: "", category_id: "" });
+
+  const showNotice = (type: "error" | "success", message: string) => {
+    setNotice({ type, message });
+    setTimeout(() => setNotice(null), 4000);
+  };
 
   const fetchData = async () => {
     setLoading(true);
-    const [catRes, subRes] = await Promise.all([
-      supabase.from("categories").select("*").order("name"),
-      supabase.from("subcategories").select("*").order("name"),
-    ]);
-
-    if (catRes.data) setCategories(catRes.data);
-    if (subRes.data) setSubcategories(subRes.data);
+    try {
+      const [catRes, subRes] = await Promise.all([
+        fetch("/api/categories").then((r) => r.json()),
+        fetch("/api/subcategories").then((r) => r.json()),
+      ]);
+      if (catRes.categories) setCategories(catRes.categories);
+      if (subRes.subcategories) setSubcategories(subRes.subcategories);
+    } catch (e) {
+      showNotice("error", "Failed to load data. Check your network.");
+    }
     setLoading(false);
   };
 
@@ -64,67 +80,104 @@ export default function CategoryManager() {
 
   const openCategoryModal = (cat: Category | null = null) => {
     setEditingCat(cat);
-    setFormData({ name: cat?.name || "", slug: cat?.slug || "", category_id: "" });
+    setCatForm({
+      name: cat?.name || "",
+      slug: cat?.slug || "",
+      description: cat?.description || "",
+      image_url: cat?.image_url || "",
+    });
+    setCatImages(cat?.image_url ? [{ id: "", product_id: "", url: cat.image_url, is_thumbnail: true, display_order: 0 }] : []);
     setIsCatModalOpen(true);
+    setNotice(null);
   };
 
-  const openSubcategoryModal = (sub: Subcategory | null = null, catId = "") => {
+  const openSubcategoryModal = (sub: Subcategory | null = null) => {
     setEditingSub(sub);
-    setFormData({
+    setSubForm({
       name: sub?.name || "",
       slug: sub?.slug || "",
-      category_id: sub?.category_id || catId,
+      category_id: sub?.category_id || "",
     });
     setIsSubModalOpen(true);
+    setNotice(null);
   };
 
   const saveCategory = async () => {
+    if (!catForm.name.trim() || !catForm.slug.trim()) {
+      showNotice("error", "Name and slug are required.");
+      return;
+    }
+    setSaving(true);
     try {
-      if (editingCat) {
-        await supabase
-          .from("categories")
-          .update({ name: formData.name, slug: formData.slug })
-          .eq("id", editingCat.id);
-      } else {
-        await supabase.from("categories").insert({ name: formData.name, slug: formData.slug });
-      }
+      const imageUrl = catImages[0]?.url || catForm.image_url || null;
+      const payload = { ...catForm, image_url: imageUrl };
+      const method = editingCat ? "PUT" : "POST";
+      const body = editingCat ? { id: editingCat.id, ...payload } : payload;
+
+      const res = await fetch("/api/categories", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save category.");
+      showNotice("success", `Category "${catForm.name}" saved successfully!`);
       setIsCatModalOpen(false);
       fetchData();
-    } catch (error) {
-      console.error(error);
+    } catch (e: any) {
+      showNotice("error", e.message);
     }
+    setSaving(false);
   };
 
   const saveSubcategory = async () => {
+    if (!subForm.name.trim() || !subForm.slug.trim() || !subForm.category_id) {
+      showNotice("error", "Name, slug, and parent category are required.");
+      return;
+    }
+    setSaving(true);
     try {
-      if (editingSub) {
-        await supabase
-          .from("subcategories")
-          .update({ name: formData.name, slug: formData.slug, category_id: formData.category_id })
-          .eq("id", editingSub.id);
-      } else {
-        await supabase
-          .from("subcategories")
-          .insert({ name: formData.name, slug: formData.slug, category_id: formData.category_id });
-      }
+      const method = editingSub ? "PUT" : "POST";
+      const body = editingSub ? { id: editingSub.id, ...subForm } : subForm;
+      const res = await fetch("/api/subcategories", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save subcategory.");
+      showNotice("success", `Subcategory "${subForm.name}" saved successfully!`);
       setIsSubModalOpen(false);
       fetchData();
-    } catch (error) {
-      console.error(error);
+    } catch (e: any) {
+      showNotice("error", e.message);
+    }
+    setSaving(false);
+  };
+
+  const deleteCategory = async (id: string, name: string) => {
+    if (!confirm(`Delete category "${name}"? This will unlink all products.`)) return;
+    try {
+      const res = await fetch(`/api/categories?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showNotice("success", "Category deleted.");
+      fetchData();
+    } catch (e: any) {
+      showNotice("error", e.message || "Delete failed.");
     }
   };
 
-  const deleteCategory = async (id: string) => {
-    if (confirm("Delete this category? This will delete all subcategories and unlink products.")) {
-      await supabase.from("categories").delete().eq("id", id);
+  const deleteSubcategory = async (id: string, name: string) => {
+    if (!confirm(`Delete subcategory "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/subcategories?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showNotice("success", "Subcategory deleted.");
       fetchData();
-    }
-  };
-
-  const deleteSubcategory = async (id: string) => {
-    if (confirm("Delete this subcategory?")) {
-      await supabase.from("subcategories").delete().eq("id", id);
-      fetchData();
+    } catch (e: any) {
+      showNotice("error", e.message || "Delete failed.");
     }
   };
 
@@ -138,10 +191,27 @@ export default function CategoryManager() {
 
   return (
     <div className="space-y-12">
+      {/* Global Notice */}
+      {notice && (
+        <div
+          className={`rounded-xl px-4 py-3 flex items-center gap-3 text-sm font-medium ${
+            notice.type === "error"
+              ? "bg-red-500/10 border border-red-500/30 text-red-400"
+              : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+          }`}
+        >
+          {notice.type === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          {notice.message}
+        </div>
+      )}
+
       {/* Categories Section */}
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-heading font-bold text-foreground dark:text-foreground dark:text-white">Categories</h2>
+          <div>
+            <h2 className="text-2xl font-heading font-bold text-foreground dark:text-white">Categories</h2>
+            <p className="text-muted text-sm mt-1">Manage top-level product categories.</p>
+          </div>
           <Button variant="luxury" onClick={() => openCategoryModal()}>
             <Plus size={16} className="mr-2" /> Add Category
           </Button>
@@ -150,6 +220,7 @@ export default function CategoryManager() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Slug</TableHead>
               <TableHead>Status</TableHead>
@@ -159,15 +230,22 @@ export default function CategoryManager() {
           <TableBody>
             {categories.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted py-8">
-                  No categories found.
+                <TableCell colSpan={5} className="text-center text-muted py-8">
+                  No categories yet. Add your first one!
                 </TableCell>
               </TableRow>
             )}
             {categories.map((cat) => (
               <TableRow key={cat.id}>
-                <TableCell className="font-medium text-foreground dark:text-foreground dark:text-white">{cat.name}</TableCell>
-                <TableCell className="text-muted">{cat.slug}</TableCell>
+                <TableCell>
+                  {cat.image_url ? (
+                    <img src={cat.image_url} alt={cat.name} className="w-10 h-10 rounded-lg object-cover border border-border" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center text-muted text-xs">No img</div>
+                  )}
+                </TableCell>
+                <TableCell className="font-medium text-foreground dark:text-white">{cat.name}</TableCell>
+                <TableCell className="text-muted font-mono text-xs">{cat.slug}</TableCell>
                 <TableCell>
                   <Badge variant="success">Active</Badge>
                 </TableCell>
@@ -179,7 +257,7 @@ export default function CategoryManager() {
                     variant="ghost"
                     size="icon"
                     className="text-error hover:text-error hover:bg-error/10"
-                    onClick={() => deleteCategory(cat.id)}
+                    onClick={() => deleteCategory(cat.id, cat.name)}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -193,7 +271,10 @@ export default function CategoryManager() {
       {/* Subcategories Section */}
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-heading font-bold text-foreground dark:text-foreground dark:text-white">Subcategories</h2>
+          <div>
+            <h2 className="text-2xl font-heading font-bold text-foreground dark:text-white">Subcategories</h2>
+            <p className="text-muted text-sm mt-1">Organize products under their parent categories.</p>
+          </div>
           <Button variant="outline" onClick={() => openSubcategoryModal()}>
             <Plus size={16} className="mr-2" /> Add Subcategory
           </Button>
@@ -205,14 +286,15 @@ export default function CategoryManager() {
               <TableHead>Name</TableHead>
               <TableHead>Parent Category</TableHead>
               <TableHead>Slug</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {subcategories.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted py-8">
-                  No subcategories found.
+                <TableCell colSpan={5} className="text-center text-muted py-8">
+                  No subcategories yet.
                 </TableCell>
               </TableRow>
             )}
@@ -220,9 +302,12 @@ export default function CategoryManager() {
               const parent = categories.find((c) => c.id === sub.category_id);
               return (
                 <TableRow key={sub.id}>
-                  <TableCell className="font-medium text-foreground dark:text-foreground dark:text-white">{sub.name}</TableCell>
-                  <TableCell className="text-accent-gold">{parent?.name || "Unknown"}</TableCell>
-                  <TableCell className="text-muted">{sub.slug}</TableCell>
+                  <TableCell className="font-medium text-foreground dark:text-white">{sub.name}</TableCell>
+                  <TableCell className="text-accent-gold font-medium">{parent?.name || "Unknown"}</TableCell>
+                  <TableCell className="text-muted font-mono text-xs">{sub.slug}</TableCell>
+                  <TableCell>
+                    <Badge variant="success">Active</Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openSubcategoryModal(sub)}>
                       <Edit size={16} />
@@ -231,7 +316,7 @@ export default function CategoryManager() {
                       variant="ghost"
                       size="icon"
                       className="text-error hover:text-error hover:bg-error/10"
-                      onClick={() => deleteSubcategory(sub.id)}
+                      onClick={() => deleteSubcategory(sub.id, sub.name)}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -243,7 +328,7 @@ export default function CategoryManager() {
         </Table>
       </div>
 
-      {/* Modals */}
+      {/* Category Modal */}
       <Modal
         isOpen={isCatModalOpen}
         onClose={() => setIsCatModalOpen(false)}
@@ -251,35 +336,51 @@ export default function CategoryManager() {
       >
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Name</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Name *</label>
             <Input
-              value={formData.name}
+              value={catForm.name}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  name: e.target.value,
-                  slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
-                })
+                setCatForm({ ...catForm, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") })
               }
               placeholder="e.g. Cosmetics"
               className="mt-1"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Slug</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Slug *</label>
             <Input
-              value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+              value={catForm.slug}
+              onChange={(e) => setCatForm({ ...catForm, slug: e.target.value })}
               placeholder="e.g. cosmetics"
               className="mt-1"
             />
           </div>
-          <Button variant="luxury" className="w-full mt-4" onClick={saveCategory}>
-            Save Category
+          <div>
+            <label className="text-sm font-medium text-foreground dark:text-white">Description</label>
+            <textarea
+              value={catForm.description}
+              onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
+              placeholder="Optional description"
+              className="w-full mt-1 h-20 p-3 rounded-md bg-surface/50 border border-border text-foreground dark:text-white focus:outline-none focus:border-accent-gold text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground dark:text-white mb-2 block">Category Image</label>
+            <ImageUpload
+              multiple={false}
+              existingImages={catImages}
+              onUploadSuccess={(img) => setCatImages([img])}
+              onRemove={() => setCatImages([])}
+            />
+          </div>
+          <Button variant="luxury" className="w-full mt-4" onClick={saveCategory} disabled={saving}>
+            {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+            {saving ? "Saving..." : "Save Category"}
           </Button>
         </div>
       </Modal>
 
+      {/* Subcategory Modal */}
       <Modal
         isOpen={isSubModalOpen}
         onClose={() => setIsSubModalOpen(false)}
@@ -287,11 +388,11 @@ export default function CategoryManager() {
       >
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Parent Category</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Parent Category *</label>
             <select
               className="w-full mt-1 bg-surface/50 border border-border rounded-md h-10 px-3 text-foreground dark:text-white focus:outline-none focus:border-accent-gold"
-              value={formData.category_id}
-              onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+              value={subForm.category_id}
+              onChange={(e) => setSubForm({ ...subForm, category_id: e.target.value })}
             >
               <option value="" disabled>
                 Select a category
@@ -304,25 +405,21 @@ export default function CategoryManager() {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Name</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Name *</label>
             <Input
-              value={formData.name}
+              value={subForm.name}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  name: e.target.value,
-                  slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
-                })
+                setSubForm({ ...subForm, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") })
               }
               placeholder="e.g. Lipsticks"
               className="mt-1"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground dark:text-white">Slug</label>
+            <label className="text-sm font-medium text-foreground dark:text-white">Slug *</label>
             <Input
-              value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+              value={subForm.slug}
+              onChange={(e) => setSubForm({ ...subForm, slug: e.target.value })}
               placeholder="e.g. lipsticks"
               className="mt-1"
             />
@@ -331,9 +428,10 @@ export default function CategoryManager() {
             variant="luxury"
             className="w-full mt-4"
             onClick={saveSubcategory}
-            disabled={!formData.category_id}
+            disabled={saving || !subForm.category_id || !subForm.name}
           >
-            Save Subcategory
+            {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
+            {saving ? "Saving..." : "Save Subcategory"}
           </Button>
         </div>
       </Modal>

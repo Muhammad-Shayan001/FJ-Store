@@ -186,6 +186,22 @@ export async function PUT(request: Request) {
   return saveProduct(request, "update");
 }
 
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Product id is required." }, { status: 400 });
+    const supabase = getServiceRoleClient();
+    // Delete related images first
+    await supabase.from("product_images").delete().eq("product_id", id);
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 async function saveProduct(request: Request, mode: "insert" | "update") {
   try {
     const body = await request.json().catch(() => ({}));

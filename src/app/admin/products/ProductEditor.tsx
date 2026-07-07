@@ -227,7 +227,7 @@ export default function ProductEditor({
       const response = await fetch("/api/products", {
         method: product ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, id: product?.id }),
+        body: JSON.stringify({ ...payload, id: product?.id, images: formData.images }),
       });
 
       const data = await response.json();
