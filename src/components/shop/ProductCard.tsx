@@ -2,10 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types/product";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, Search, ShoppingBag } from "lucide-react";
-import { useCartStore } from "@/lib/store/useCartStore";
 import { formatCurrency } from "@/lib/utils";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -15,13 +13,14 @@ export function ProductCard({ product }: { product: Product }) {
     product.images?.[0]?.url ||
     null;
 
-  const addItem = useCartStore((state) => state.addItem);
   const router = useRouter();
+  const productUrl = `/shop/${product.category?.slug || "category"}/${product.subcategory?.slug || "subcategory"}/${product.slug}`;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem(product);
+  const handleView = () => {
+    router.push(productUrl);
+  };
+
+  const handleShop = () => {
     router.push("/shop");
   };
 
@@ -67,13 +66,13 @@ export function ProductCard({ product }: { product: Product }) {
         {/* Quick View Overlay */}
         <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0 flex gap-2">
           <button
-            onClick={() => router.push("/shop")}
+            onClick={handleView}
             className="flex-1 py-3 bg-foreground backdrop-blur text-background font-semibold rounded font-sans text-sm flex justify-center items-center gap-2 hover:bg-foreground/90 transition-colors"
           >
             <Search size={16} /> <span className="hidden sm:inline">View</span>
           </button>
           <button
-            onClick={handleAddToCart}
+            onClick={handleShop}
             className="flex-1 py-3 bg-accent-gold/90 backdrop-blur text-black font-semibold rounded font-sans text-sm flex justify-center items-center gap-2 hover:bg-accent-gold transition-colors"
           >
             <ShoppingBag size={16} /> <span className="hidden sm:inline">Shop</span>

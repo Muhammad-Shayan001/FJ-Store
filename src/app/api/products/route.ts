@@ -111,7 +111,8 @@ export async function GET(request: Request) {
           *,
           images:product_images(*),
           variants:product_variants(*),
-          category:categories(*)
+          category:categories(*),
+          subcategory:subcategories(name, slug)
         `,
         { count: "exact" }
       );

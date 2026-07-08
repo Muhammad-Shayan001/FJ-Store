@@ -52,6 +52,7 @@ export type Product = {
   images?: ProductImage[];
   variants?: ProductVariant[];
   category?: Category;
+  subcategory?: Subcategory;
 };
 
 export type ProductImage = {

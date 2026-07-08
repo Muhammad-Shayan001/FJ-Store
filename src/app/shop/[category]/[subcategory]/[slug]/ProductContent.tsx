@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 import { useCartStore } from "@/lib/store/useCartStore";
 import { Button, Badge, Card, CardContent } from "@/components/ui";
 import { ShoppingBag, Star, ShieldCheck, Truck, Plus, Minus, Heart } from "lucide-react";
@@ -46,13 +46,11 @@ export default function ProductContent({ product }: { product: any }) {
             {/* Main Image */}
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-b from-gray-200 to-gray-300 dark:from-surface dark:to-surface/50 border border-border dark:border-border group">
               {mainImage ? (
-                <Image 
-                  src={mainImage} 
-                  alt={product.name} 
-                  fill 
-                  className="object-cover group-hover:scale-105 transition-transform duration-500" 
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                <img
+                  src={mainImage}
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="eager"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted">No Image</div>
@@ -87,12 +85,11 @@ export default function ProductContent({ product }: { product: any }) {
                         : "border-border dark:border-border hover:border-accent-gold dark:hover:border-white/30"
                     }`}
                   >
-                    <Image 
-                      src={img.url} 
-                      alt="" 
-                      fill 
-                      className="object-cover" 
-                      sizes="80px"
+                    <img
+                      src={img.url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   </button>
                 ))}
@@ -241,6 +238,68 @@ export default function ProductContent({ product }: { product: any }) {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-16 pt-12 border-t border-border dark:border-border">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-3xl font-heading font-bold text-foreground dark:text-foreground dark:text-white">
+                Customer Reviews
+              </h2>
+              <p className="text-muted">Read verified feedback from real buyers.</p>
+            </div>
+            <div className="text-right">
+              <div className="text-5xl font-bold text-accent-gold">
+                {product.reviews && product.reviews.length > 0
+                  ? (
+                      product.reviews.reduce((sum: number, review: any) => sum + (review.rating || 0), 0) /
+                      product.reviews.length
+                    ).toFixed(1)
+                  : "0.0"}
+              </div>
+              <p className="text-sm text-muted">{product.reviews?.length || 0} reviews</p>
+            </div>
+          </div>
+
+          {product.reviews && product.reviews.length > 0 ? (
+            <div className="grid gap-6">
+              {product.reviews.map((review: any) => (
+                <Card key={review.id} className="bg-surface/50 border-border dark:border-border">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
+                      <div>
+                        <div className="flex text-accent-gold gap-1">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <Star
+                              key={rating}
+                              size={18}
+                              fill={rating <= (review.rating || 0) ? "currentColor" : "none"}
+                              className={rating <= (review.rating || 0) ? "text-accent-gold" : "text-muted"}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-sm text-muted mt-2">
+                          {review.created_at ? new Date(review.created_at).toLocaleDateString() : "Date unavailable"}
+                        </p>
+                      </div>
+                      <Badge className="bg-accent-gold/10 text-accent-gold border-accent-gold/30">
+                        Verified Buyer
+                      </Badge>
+                    </div>
+                    <p className="text-lg text-foreground dark:text-foreground dark:text-white font-semibold mb-3">
+                      {review.title || "Customer review"}
+                    </p>
+                    <p className="text-muted leading-relaxed">{review.comment || "No comment provided."}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-border bg-surface/50 p-8 text-center text-muted">
+              No reviews have been submitted for this product yet.
+            </div>
+          )}
         </div>
       </div>
     </>
