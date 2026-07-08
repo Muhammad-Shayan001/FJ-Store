@@ -1,24 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
-
-// Singleton Gemini client
-let _client: GoogleGenAI | null = null;
-
-export function getGeminiClient(): GoogleGenAI {
-  if (!_client) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set in environment variables.");
-    }
-    _client = new GoogleGenAI({ apiKey });
-  }
-  return _client;
-}
+/**
+ * Gemini API Client - Direct REST API calls
+ * Uses the official Gemini REST API endpoint
+ */
 
 export const GEMINI_MODEL = "gemini-1.5-flash";
 export const EMBEDDING_MODEL = "text-embedding-004";
 
 /**
- * Generate content from a text prompt using Gemini
+ * Generate content from a text prompt using Gemini via REST API
  * @param prompt - The text prompt to send to Gemini
  * @param config - Optional configuration (maxOutputTokens, temperature)
  * @returns The generated text
@@ -27,22 +16,42 @@ export async function generateGeminiContent(
   prompt: string,
   config?: { maxOutputTokens?: number; temperature?: number }
 ): Promise<string> {
-  const client = getGeminiClient();
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set in environment variables.");
+  }
 
-  const response = await client.generateContent({
-    model: GEMINI_MODEL,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: {
-      maxOutputTokens: config?.maxOutputTokens || 1000,
-      temperature: config?.temperature || 0.7,
-    },
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: config?.maxOutputTokens || 1000,
+        temperature: config?.temperature || 0.7,
+      },
+    }),
   });
 
-  return response.text();
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("No text in Gemini response");
+  }
+
+  return text;
 }
 
 /**
- * Generate content from a conversation using Gemini
+ * Generate content from a conversation using Gemini via REST API
  * @param messages - Array of messages in the conversation
  * @param systemInstruction - System instruction for the model
  * @param config - Optional configuration (maxOutputTokens, temperature)
@@ -53,22 +62,49 @@ export async function generateGeminiChat(
   systemInstruction?: string,
   config?: { maxOutputTokens?: number; temperature?: number }
 ): Promise<string> {
-  const client = getGeminiClient();
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set in environment variables.");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const conversationHistory = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.content }],
   }));
 
-  const response = await client.generateContent({
-    model: GEMINI_MODEL,
+  const requestBody: any = {
     contents: conversationHistory,
-    systemInstruction: systemInstruction,
     generationConfig: {
       maxOutputTokens: config?.maxOutputTokens || 500,
       temperature: config?.temperature || 0.7,
     },
+  };
+
+  if (systemInstruction) {
+    requestBody.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
   });
 
-  return response.text();
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("No text in Gemini response");
+  }
+
+  return text;
 }
