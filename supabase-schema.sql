@@ -110,6 +110,10 @@ CREATE TABLE IF NOT EXISTS public.product_images (
     url TEXT NOT NULL,
     is_thumbnail BOOLEAN DEFAULT false,
     display_order INTEGER DEFAULT 0,
+    provider TEXT DEFAULT 'url',
+    public_id TEXT,
+    file_size INTEGER,
+    mime_type TEXT DEFAULT 'image/jpeg',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
