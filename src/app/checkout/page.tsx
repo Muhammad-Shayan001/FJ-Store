@@ -25,6 +25,18 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<"standard" | "express">("standard");
   const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal" | "cod">("stripe");
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressForm, setAddressForm] = useState({
+    title: "",
+    address_line_1: "",
+    address_line_2: "",
+    city: "",
+    state: "",
+    country: "",
+    postal_code: "",
+  });
+  const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -66,6 +78,70 @@ export default function CheckoutPage() {
   };
 
   const finalTotal = subtotal + calculateShipping() - discount;
+
+  const handleAddressFormChange = (field: string, value: string) => {
+    setAddressForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveAddress = async () => {
+    setAddressSaveError(null);
+    setSavingAddress(true);
+
+    if (!user) {
+      setAddressSaveError("Please sign in to save a shipping address.");
+      setSavingAddress(false);
+      return;
+    }
+
+    if (!addressForm.address_line_1 || !addressForm.city || !addressForm.country) {
+      setAddressSaveError("Street address, city, and country are required.");
+      setSavingAddress(false);
+      return;
+    }
+
+    try {
+      const { data: newAddress, error } = await supabase
+        .from("addresses")
+        .insert([
+          {
+            user_id: user.id,
+            title: addressForm.title,
+            address_line_1: addressForm.address_line_1,
+            address_line_2: addressForm.address_line_2,
+            city: addressForm.city,
+            state: addressForm.state,
+            country: addressForm.country,
+            postal_code: addressForm.postal_code,
+            is_default: addresses.length === 0,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error || !newAddress) {
+        throw error || new Error("Unable to save address.");
+      }
+
+      const updated = [...addresses, newAddress];
+      setAddresses(updated);
+      setSelectedAddressId(newAddress.id);
+      setShowAddressForm(false);
+      setAddressForm({
+        title: "",
+        address_line_1: "",
+        address_line_2: "",
+        city: "",
+        state: "",
+        country: "",
+        postal_code: "",
+      });
+    } catch (err) {
+      console.error("Save address error", err);
+      setAddressSaveError(err instanceof Error ? err.message : "Failed to save address.");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (!user || !selectedAddressId) return;
@@ -216,36 +292,158 @@ export default function CheckoutPage() {
                   {addresses.length === 0 ? (
                     <div className="bg-surface/50 border border-border dark:border-border/50 p-8 rounded-2xl text-center">
                       <p className="text-muted mb-4">No addresses found.</p>
-                      <button className="bg-surface dark:bg-black/10 dark:bg-white/10 text-foreground dark:text-foreground dark:text-white px-4 py-2 rounded-lg hover:bg-surface/80 dark:hover:bg-white/20 transition-colors">
+                      <button
+                        onClick={() => setShowAddressForm(true)}
+                        className="bg-accent-gold text-black px-4 py-2 rounded-lg hover:bg-accent-gold/90 transition-colors"
+                      >
                         Add New Address
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {addresses.map((addr) => (
-                        <div
-                          key={addr.id}
-                          onClick={() => setSelectedAddressId(addr.id)}
-                          className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedAddressId === addr.id ? "border-accent-gold bg-accent-gold/5" : "border-border bg-surface/30 hover:border-white/30"}`}
-                        >
-                          <div className="font-semibold text-foreground dark:text-white mb-1">
-                            {addr.title || "Address"}{" "}
-                            {addr.is_default && (
-                              <span className="text-[10px] ml-2 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded text-muted">
-                                Default
-                              </span>
-                            )}
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {addresses.map((addr) => (
+                          <div
+                            key={addr.id}
+                            onClick={() => setSelectedAddressId(addr.id)}
+                            className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedAddressId === addr.id ? "border-accent-gold bg-accent-gold/5" : "border-border bg-surface/30 hover:border-white/30"}`}
+                          >
+                            <div className="font-semibold text-foreground dark:text-white mb-1">
+                              {addr.title || "Address"}{" "}
+                              {addr.is_default && (
+                                <span className="text-[10px] ml-2 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded text-muted">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted">
+                              <p>{addr.address_line_1}</p>
+                              {addr.address_line_2 && <p>{addr.address_line_2}</p>}
+                              <p>
+                                {addr.city}, {addr.state} {addr.postal_code}
+                              </p>
+                              <p>{addr.country}</p>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted">
-                            <p>{addr.address_line_1}</p>
-                            {addr.address_line_2 && <p>{addr.address_line_2}</p>}
-                            <p>
-                              {addr.city}, {addr.state} {addr.postal_code}
-                            </p>
-                            <p>{addr.country}</p>
-                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => setShowAddressForm(true)}
+                        className="w-full sm:w-auto bg-accent-gold text-black px-6 py-3 rounded-xl font-semibold hover:bg-accent-gold/90 transition-colors"
+                      >
+                        Add New Address
+                      </button>
+                    </div>
+                  )}
+
+                  {showAddressForm && (
+                    <div className="space-y-4 p-6 rounded-2xl border border-border bg-surface">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground dark:text-white">New Shipping Address</h3>
+                          <p className="text-sm text-muted">Fill in the address to save and use for checkout.</p>
                         </div>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => setShowAddressForm(false)}
+                          className="text-sm text-muted hover:text-foreground transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="space-y-2 text-sm text-muted">
+                          <span>Title</span>
+                          <input
+                            value={addressForm.title}
+                            onChange={(e) => handleAddressFormChange("title", e.target.value)}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                            placeholder="Home, Office, etc."
+                          />
+                        </label>
+                        <label className="space-y-2 text-sm text-muted">
+                          <span>Country</span>
+                          <input
+                            value={addressForm.country}
+                            onChange={(e) => handleAddressFormChange("country", e.target.value)}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                            placeholder="Country"
+                          />
+                        </label>
+                      </div>
+
+                      <label className="space-y-2 text-sm text-muted">
+                        <span>Street Address</span>
+                        <input
+                          value={addressForm.address_line_1}
+                          onChange={(e) => handleAddressFormChange("address_line_1", e.target.value)}
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                          placeholder="123 Main St"
+                        />
+                      </label>
+
+                      <label className="space-y-2 text-sm text-muted">
+                        <span>Address Line 2</span>
+                        <input
+                          value={addressForm.address_line_2}
+                          onChange={(e) => handleAddressFormChange("address_line_2", e.target.value)}
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                          placeholder="Apartment, suite, unit, building, floor, etc."
+                        />
+                      </label>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="space-y-2 text-sm text-muted">
+                          <span>City</span>
+                          <input
+                            value={addressForm.city}
+                            onChange={(e) => handleAddressFormChange("city", e.target.value)}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                            placeholder="City"
+                          />
+                        </label>
+                        <label className="space-y-2 text-sm text-muted">
+                          <span>State</span>
+                          <input
+                            value={addressForm.state}
+                            onChange={(e) => handleAddressFormChange("state", e.target.value)}
+                            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                            placeholder="State / Province"
+                          />
+                        </label>
+                      </div>
+
+                      <label className="space-y-2 text-sm text-muted">
+                        <span>Postal Code</span>
+                        <input
+                          value={addressForm.postal_code}
+                          onChange={(e) => handleAddressFormChange("postal_code", e.target.value)}
+                          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-accent-gold focus:ring-2 focus:ring-accent-gold/20"
+                          placeholder="Postal Code"
+                        />
+                      </label>
+
+                      {addressSaveError && <p className="text-sm text-red-500">{addressSaveError}</p>}
+
+                      <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddressForm(false)}
+                          className="rounded-xl border border-border bg-surface px-5 py-3 text-sm text-foreground hover:border-white/30 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveAddress}
+                          disabled={savingAddress}
+                          className="rounded-xl bg-accent-gold px-5 py-3 text-sm font-semibold text-black hover:bg-accent-gold/90 transition-colors disabled:opacity-50"
+                        >
+                          {savingAddress ? "Saving..." : "Save Address"}
+                        </button>
+                      </div>
                     </div>
                   )}
 
