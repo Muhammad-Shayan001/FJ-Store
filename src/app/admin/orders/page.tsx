@@ -1,51 +1,46 @@
-"use client";
-
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { createBrowserClient } from "@/lib/supabase/client";
-import { Package, Search, Eye } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent, Table, Badge, Button, Input } from "@/components/ui";
+﻿import { format } from "date-fns";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { Package, Eye } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent, Table, Badge, Button } from "@/components/ui";
 import Link from "next/link";
-import { format } from "date-fns";
 
-function OrdersContent() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const supabase = createBrowserClient();
-  const searchParams = useSearchParams();
-  const statusFilter = searchParams.get("status");
+interface AdminOrdersPageProps {
+  searchParams?: { status?: string | string[]; search?: string | string[] };
+}
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          created_at,
-          total,
-          status,
-          user:profiles ( full_name, email )
-        `)
-        .order("created_at", { ascending: false });
+export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageProps) {
+  const statusFilter = Array.isArray(searchParams?.status) ? searchParams?.status[0] : searchParams?.status;
+  const searchText = Array.isArray(searchParams?.search) ? searchParams?.search[0] : searchParams?.search;
+  const normalizedSearch = (searchText || "").trim().toLowerCase();
 
-      if (data) setOrders(data);
-      setLoading(false);
-    };
+  const supabase = await createServiceRoleClient();
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      created_at,
+      total,
+      status,
+      user:profiles ( full_name, email )
+    `)
+    .order("created_at", { ascending: false });
 
-    fetchOrders();
-  }, [supabase]);
+  const orderList = error || !orders ? [] : orders;
 
-  const filteredOrders = orders.filter((o) => {
+  const filteredOrders = orderList.filter((o) => {
     const matchesSearch =
-      o.id.toLowerCase().includes(search.toLowerCase()) ||
-      o.user?.full_name?.toLowerCase().includes(search.toLowerCase());
+      o.id.toLowerCase().includes(normalizedSearch) ||
+      o.user?.full_name?.toLowerCase().includes(normalizedSearch) ||
+      o.user?.email?.toLowerCase().includes(normalizedSearch);
 
     if (statusFilter === "Pending") {
       return matchesSearch && o.status === "Pending";
     }
     if (statusFilter === "Delivered") {
       return matchesSearch && (o.status === "Delivered" || o.status === "Received");
+    }
+    if (statusFilter === "Paid") {
+      return matchesSearch && o.status === "Paid";
     }
     return matchesSearch;
   });
@@ -64,22 +59,24 @@ function OrdersContent() {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row gap-4 justify-between">
           <CardTitle>{statusFilter ? `${statusFilter} Orders` : "All Orders"}</CardTitle>
-          <div className="flex gap-2">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
-              <Input
-                placeholder="Search orders..."
-                className="pl-9 bg-surface/50 border-border dark:border-border/50"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
+          <form className="flex gap-2" method="get">
+            <input
+              name="search"
+              type="text"
+              defaultValue={normalizedSearch}
+              placeholder="Search orders..."
+              className="rounded-xl border border-border bg-surface px-4 py-2 text-sm text-foreground outline-none focus:border-accent-gold"
+            />
+            <button
+              type="submit"
+              className="rounded-xl bg-accent-gold px-4 py-2 text-sm font-semibold text-black hover:bg-accent-gold/90"
+            >
+              Search
+            </button>
+          </form>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="py-12 text-center text-muted">Loading orders...</div>
-          ) : filteredOrders.length === 0 ? (
+          {filteredOrders.length === 0 ? (
             <div className="py-12 text-center text-muted">
               <Package size={32} className="mx-auto mb-3 opacity-50" />
               <p>No orders found.</p>
@@ -107,7 +104,7 @@ function OrdersContent() {
                         {format(new Date(order.created_at), "MMM d, yyyy")}
                       </td>
                       <td className="p-3 text-sm text-foreground dark:text-foreground dark:text-white">
-                        {order.user?.full_name || "Guest"}<br/>
+                        {order.user?.full_name || "Guest"}<br />
                         <span className="text-xs text-muted">{order.user?.email}</span>
                       </td>
                       <td className="p-3 text-sm text-accent-gold font-medium">
@@ -116,7 +113,7 @@ function OrdersContent() {
                       <td className="p-3">
                         <Badge
                           variant={
-                            order.status === "Delivered" || order.status === "Received" ? "success" :
+                            order.status === "Paid" || order.status === "Delivered" || order.status === "Received" ? "success" :
                             order.status === "Cancelled" || order.status === "Returned" ? "destructive" :
                             order.status === "Shipped" ? "luxury" : "outline"
                           }
@@ -140,13 +137,5 @@ function OrdersContent() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function AdminOrdersPage() {
-  return (
-    <Suspense fallback={<div className="py-12 text-center text-muted">Loading orders...</div>}>
-      <OrdersContent />
-    </Suspense>
   );
 }
