@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGroqClient, GROQ_MODEL } from "@/lib/ai/groq";
-import { getGeminiClient, GEMINI_MODEL } from "@/lib/ai/gemini";
+import { generateGeminiContent } from "@/lib/ai/gemini";
 
 /**
  * API DIAGNOSTIC TEST ENDPOINT

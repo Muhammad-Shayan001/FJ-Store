@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
-import { getGeminiClient, GEMINI_MODEL } from "@/lib/ai/gemini";
+import { generateGeminiContent } from "@/lib/ai/gemini";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest, context: any) {

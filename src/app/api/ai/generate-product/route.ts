@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGeminiClient, GEMINI_MODEL } from "@/lib/ai/gemini";
+import { generateGeminiContent } from "@/lib/ai/gemini";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,8 +9,6 @@ export async function POST(req: NextRequest) {
     if (!name) {
       return NextResponse.json({ error: "Product name is required." }, { status: 400 });
     }
-
-    const ai = getGeminiClient();
 
     const prompt = `You are an expert eCommerce copywriter for a luxury store called "FJ Store".
 Generate compelling product content based on the following inputs:
@@ -33,12 +31,7 @@ Return a JSON object with EXACTLY these keys (no markdown, no code fences, just 
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-    });
-
-    const text = response.text || "";
+    const text = await generateGeminiContent(prompt, { maxOutputTokens: 1000 });
     
     // Strip markdown code fences if present
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

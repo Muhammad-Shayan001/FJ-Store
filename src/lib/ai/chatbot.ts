@@ -6,7 +6,8 @@
  */
 
 import { getGroqResponse } from "./groq";
-import { getGeminiClient, GEMINI_MODEL } from "./gemini";
+import { generateGeminiChat } from "./gemini";
+
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -49,28 +50,12 @@ export async function getChatbotResponse(
   // STEP 2: Fallback to Gemini API (Secondary)
   // ============================================
   try {
-    console.log("[CHATBOT] Initializing Gemini client...");
-    const client = getGeminiClient();
-
-    // Build conversation history for Gemini
-    const conversationHistory = messages.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.content }],
-    }));
-
-    console.log("[CHATBOT] Calling Gemini API...");
-    const response = await client.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: conversationHistory,
-      config: {
-        systemInstruction: systemContext,
-        maxOutputTokens: 500,
-        temperature: 0.7,
-      },
+    console.log("[CHATBOT] Attempting Gemini API (fallback)...");
+    const reply = await generateGeminiChat(messages, systemContext, {
+      maxOutputTokens: 500,
+      temperature: 0.7,
     });
-
-    const reply = response.text || "I'm sorry, I couldn't generate a response. Please try again.";
-    console.log("[CHATBOT] ✓ Success with Gemini API (fallback)");
+    console.log("[CHATBOT] ✓ Success with Gemini API");
     return { reply, source: "gemini" };
   } catch (geminiError) {
     const geminiErrorMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
