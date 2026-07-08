@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
 import {
   Table,
   TableBody,
@@ -37,7 +36,6 @@ export default function AdminInventoryPage() {
   const [stockChanges, setStockChanges] = useState<Record<string, number>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const supabase = createBrowserClient();
 
   const addNotification = (type: NotificationType, message: string, details?: string) => {
     const id = Date.now().toString();
@@ -57,30 +55,31 @@ export default function AdminInventoryPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [prodRes, logRes] = await Promise.all([
-        supabase
-          .from("products")
-          .select("id, name, sku, stock_quantity, regular_price, categories(name)")
-          .order("name"),
-        supabase
-          .from("inventory_logs")
-          .select("*, products(name)")
-          .order("created_at", { ascending: false })
-          .limit(30),
-      ]);
+      const response = await fetch("/api/admin/inventory", { cache: "no-store" });
+      const result = await response.json();
 
-      if (prodRes.data) {
-        setProducts(prodRes.data);
+      if (!response.ok) {
+        console.error("Admin inventory fetch error:", result);
+        addNotification("error", "Failed to load inventory data", result.error || "Unable to retrieve inventory records.");
+        setLoading(false);
+        return;
+      }
+
+      if (result.products) {
+        setProducts(result.products);
         const initialChanges: Record<string, number> = {};
         const initialReasons: Record<string, string> = {};
-        prodRes.data.forEach((p) => {
+        result.products.forEach((p: any) => {
           initialChanges[p.id] = p.stock_quantity || 0;
           initialReasons[p.id] = "Restock / Adjust";
         });
         setStockChanges(initialChanges);
         setReasonInputs(initialReasons);
       }
-      if (logRes.data) setLogs(logRes.data);
+
+      if (result.logs) {
+        setLogs(result.logs);
+      }
     } catch (err) {
       console.error("Failed to fetch data:", err);
       addNotification("error", "Failed to load inventory data", "Please check your connection and try again.");

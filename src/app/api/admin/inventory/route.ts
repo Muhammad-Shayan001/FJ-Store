@@ -9,6 +9,36 @@ async function getAdminClient() {
   }
 }
 
+export async function GET() {
+  try {
+    const supabase = await getAdminClient();
+
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, name, sku, stock_quantity, regular_price, categories(name)")
+      .order("name");
+
+    if (productsError) {
+      return NextResponse.json({ error: productsError.message }, { status: 500 });
+    }
+
+    const { data: logs, error: logsError } = await supabase
+      .from("inventory_logs")
+      .select("*, products(name)")
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (logsError) {
+      return NextResponse.json({ error: logsError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ products, logs });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch admin inventory data.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
