@@ -25,6 +25,45 @@ export function getGroqClient(): Groq {
 export const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /**
+ * Generate content from a text prompt using Groq
+ * @param prompt - The text prompt
+ * @param config - Optional configuration (maxTokens, temperature)
+ * @returns Generated text
+ */
+export async function getGroqContent(
+  prompt: string,
+  config?: { maxTokens?: number; temperature?: number }
+): Promise<string> {
+  const client = getGroqClient();
+
+  console.log("[GROQ Content] Generating content...");
+
+  try {
+    const response = await client.chat.completions.create({
+      model: GROQ_MODEL,
+      messages: [
+        { role: "user", content: prompt },
+      ],
+      max_tokens: config?.maxTokens || 1000,
+      temperature: config?.temperature || 0.7,
+    });
+
+    console.log("[GROQ Content] ✓ Content generated successfully");
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content in Groq response");
+    }
+
+    return content;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[GROQ Content] ✗ API Error:", errorMsg);
+    throw error;
+  }
+}
+
+/**
  * Send a message to Groq API
  * @param messages - Chat message history
  * @param systemContext - System instruction for the AI

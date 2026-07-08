@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getGroqContent } from "@/lib/ai/groq";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +31,7 @@ Return a JSON object with EXACTLY these keys (no markdown, no code fences, just 
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
 }`;
 
-    const text = await generateGeminiContent(prompt, { maxOutputTokens: 1000 });
+    const text = await getGroqContent(prompt, { maxTokens: 1000 });
     
     // Strip markdown code fences if present
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

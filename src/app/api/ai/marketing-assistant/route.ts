@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getGroqContent } from "@/lib/ai/groq";
 
 export async function POST(req: NextRequest) {
   try {

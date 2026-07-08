@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
-import { generateGeminiContent } from "@/lib/ai/gemini";
+import { getGroqContent } from "@/lib/ai/groq";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest, context: any) {
@@ -9,7 +9,6 @@ export async function POST(req: NextRequest, context: any) {
     const { userId, category, viewedProducts, purchaseHistory, limit = 5 } = body;
 
     const supabase = await createClient();
-    const ai = getGeminiClient();
 
     // Fetch products from the same category
     let query = supabase
@@ -50,12 +49,7 @@ Return a JSON object with EXACTLY this key (no markdown, no code fences, just ra
   "reason": "Brief explanation of why these are recommended"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: prompt,
-    });
-
-    const text = response.text || "";
+    const text = await getGroqContent(prompt, { maxTokens: 600 });
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const data = JSON.parse(cleaned);
 
