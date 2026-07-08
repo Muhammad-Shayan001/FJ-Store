@@ -1,7 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { Product } from "@/lib/types/product";
+import { useAuthStore } from "@/lib/store/useAuthStore";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { Heart, Search, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -14,6 +17,10 @@ export function ProductCard({ product }: { product: Product }) {
     null;
 
   const router = useRouter();
+  const { user } = useAuthStore();
+  const supabase = createClient();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
   const productUrl = `/shop/${product.category?.slug || "category"}/${product.subcategory?.slug || "subcategory"}/${product.slug}`;
 
   const handleView = () => {
@@ -23,6 +30,36 @@ export function ProductCard({ product }: { product: Product }) {
   const handleShop = () => {
     router.push("/shop");
   };
+
+  useEffect(() => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+
+    let mounted = true;
+    async function loadWishlistStatus() {
+      try {
+        const { data } = await supabase
+          .from("wishlists")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("product_id", product.id)
+          .single();
+
+        if (mounted) {
+          setIsFavorite(!!data);
+        }
+      } catch (error) {
+        console.error("Wishlist status load failed", error);
+      }
+    }
+
+    loadWishlistStatus();
+    return () => {
+      mounted = false;
+    };
+  }, [product.id, supabase, user]);
 
   return (
     <motion.div
@@ -40,8 +77,43 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Wishlist Button */}
-      <button className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-surface/50 backdrop-blur-md flex items-center justify-center text-foreground hover:text-accent-red hover:bg-surface transition-colors">
-        <Heart size={16} />
+      <button
+        onClick={async (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+
+          if (!user) {
+            router.push("/login");
+            return;
+          }
+
+          setSavingFavorite(true);
+          try {
+            if (isFavorite) {
+              await supabase
+                .from("wishlists")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("product_id", product.id);
+              setIsFavorite(false);
+            } else {
+              await supabase.from("wishlists").insert({
+                user_id: user.id,
+                product_id: product.id,
+              });
+              setIsFavorite(true);
+            }
+          } catch (error) {
+            console.error("Wishlist update failed", error);
+          } finally {
+            setSavingFavorite(false);
+          }
+        }}
+        className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-surface/80 backdrop-blur-md flex items-center justify-center text-foreground hover:text-accent-red hover:bg-surface transition-colors"
+        aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
+        disabled={savingFavorite}
+      >
+        <Heart size={16} className={isFavorite ? "fill-red-500 text-red-500" : ""} />
       </button>
 
       {/* Image Container */}

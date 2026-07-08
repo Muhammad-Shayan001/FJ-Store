@@ -38,25 +38,25 @@
 
 /* === Light Theme === */
 :root[data-theme="light"] {
-  --background: #f7f8fa;
-  --foreground: #1a1a2e;
-  --surface: #ffffff;
+  --background: #eef2f6;
+  --foreground: #111827;
+  --surface: #f8fafc;
   --text-muted: #64748b;
-  --text-secondary: #475569;
-  --border: #e5e7eb;
-  --border-light: #f1f3f6;
+  --text-secondary: #334155;
+  --border: #dbeafe;
+  --border-light: #e2e8f0;
 
-  --accent-blue: #0369a1;
-  --accent-blue-dark: #075985;
+  --accent-blue: #0f172a;
+  --accent-blue-dark: #0c1d3f;
   --accent-gold: #b8860b;
-  --accent-red: #dc2626;
+  --accent-red: #c2410c;
 
-  --success: #059669;
-  --warning: #d97706;
-  --error: #dc2626;
+  --success: #047857;
+  --warning: #b45309;
+  --error: #b91c1c;
 
-  --hover-bg: #f1f3f6;
-  --surface-secondary: #f1f3f6;
+  --hover-bg: #e2e8f0;
+  --surface-secondary: #eff6ff;
 
   /* Softer shadows for light mode */
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);

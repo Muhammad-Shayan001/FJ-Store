@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/store/useCartStore";
+import { useAuthStore } from "@/lib/store/useAuthStore";
+import { createClient } from "@/lib/supabase/client";
 import { Button, Badge, Card, CardContent } from "@/components/ui";
 import { ShoppingBag, Star, ShieldCheck, Truck, Plus, Minus, Heart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -12,6 +14,9 @@ export default function ProductContent({ product }: { product: any }) {
   const [quantity, setQuantity] = useState(1);
   const [mainImageIndex, setMainImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
+  const { user } = useAuthStore();
+  const supabase = createClient();
   const addItem = useCartStore((state) => state.addItem);
 
   const price = selectedVariant 
@@ -27,6 +32,36 @@ export default function ProductContent({ product }: { product: any }) {
   const discount = product.sale_price 
     ? Math.round(((product.regular_price - product.sale_price) / product.regular_price) * 100)
     : 0;
+
+  useEffect(() => {
+    if (!user) {
+      setIsFavorite(false);
+      return;
+    }
+
+    let mounted = true;
+    async function loadFavoriteState() {
+      try {
+        const { data } = await supabase
+          .from("wishlists")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("product_id", product.id)
+          .single();
+
+        if (mounted) {
+          setIsFavorite(!!data);
+        }
+      } catch (error) {
+        console.error("Failed to load wishlist status", error);
+      }
+    }
+
+    loadFavoriteState();
+    return () => {
+      mounted = false;
+    };
+  }, [product.id, supabase, user]);
 
   return (
     <>
@@ -65,8 +100,37 @@ export default function ProductContent({ product }: { product: any }) {
 
               {/* Favorite Button */}
               <button 
-                onClick={() => setIsFavorite(!isFavorite)}
-                className="absolute top-4 left-4 p-3 bg-black/10 dark:bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-sm transition-colors"
+                onClick={async () => {
+                  if (!user) {
+                    window.location.href = "/login";
+                    return;
+                  }
+
+                  setSavingFavorite(true);
+                  try {
+                    if (isFavorite) {
+                      await supabase
+                        .from("wishlists")
+                        .delete()
+                        .eq("user_id", user.id)
+                        .eq("product_id", product.id);
+                      setIsFavorite(false);
+                    } else {
+                      await supabase.from("wishlists").insert({
+                        user_id: user.id,
+                        product_id: product.id,
+                      });
+                      setIsFavorite(true);
+                    }
+                  } catch (error) {
+                    console.error("Wishlist toggle failed", error);
+                  } finally {
+                    setSavingFavorite(false);
+                  }
+                }}
+                className="absolute top-4 left-4 p-3 bg-surface/80 dark:bg-white/10 hover:bg-surface transition-colors rounded-full backdrop-blur-sm"
+                aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}
+                disabled={savingFavorite}
               >
                 <Heart size={20} className={isFavorite ? "fill-red-500 text-red-500" : "text-foreground dark:text-white"} />
               </button>
