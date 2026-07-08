@@ -28,9 +28,9 @@ export async function generateGeminiContent(
   config?: { maxOutputTokens?: number; temperature?: number }
 ): Promise<string> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: GEMINI_MODEL });
 
-  const response = await model.generateContent({
+  const response = await client.generateContent({
+    model: GEMINI_MODEL,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
       maxOutputTokens: config?.maxOutputTokens || 1000,
@@ -38,7 +38,7 @@ export async function generateGeminiContent(
     },
   });
 
-  return response.response.text();
+  return response.text();
 }
 
 /**
@@ -54,14 +54,14 @@ export async function generateGeminiChat(
   config?: { maxOutputTokens?: number; temperature?: number }
 ): Promise<string> {
   const client = getGeminiClient();
-  const model = client.getGenerativeModel({ model: GEMINI_MODEL });
 
   const conversationHistory = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.content }],
   }));
 
-  const response = await model.generateContent({
+  const response = await client.generateContent({
+    model: GEMINI_MODEL,
     contents: conversationHistory,
     systemInstruction: systemInstruction,
     generationConfig: {
@@ -70,5 +70,5 @@ export async function generateGeminiChat(
     },
   });
 
-  return response.response.text();
+  return response.text();
 }
