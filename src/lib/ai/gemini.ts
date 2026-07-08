@@ -21,7 +21,7 @@ export async function generateGeminiContent(
     throw new Error("GEMINI_API_KEY is not set in environment variables.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -67,7 +67,7 @@ export async function generateGeminiChat(
     throw new Error("GEMINI_API_KEY is not set in environment variables.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const conversationHistory = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
