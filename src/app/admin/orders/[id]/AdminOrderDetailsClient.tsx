@@ -11,6 +11,7 @@ import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
 
 const ORDER_STATUSES = [
   "Pending",
+  "Paid",
   "Accepted",
   "Processing",
   "Shipped",
@@ -193,7 +194,7 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
               <div className="flex items-center gap-3">
                 <Badge
                   variant={
-                    status === "Delivered" || status === "Received" ? "success" :
+                    status === "Paid" || status === "Delivered" || status === "Received" ? "success" :
                     status === "Cancelled" || status === "Returned" ? "destructive" :
                     status === "Shipped" ? "luxury" : "outline"
                   }

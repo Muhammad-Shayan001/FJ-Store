@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
-import { sendOrderConfirmationEmail } from "@/lib/services/emailHelper";
+import { sendInvoiceEmail, sendOrderConfirmationEmail } from "@/lib/services/emailHelper";
 import { PageContainer } from "@/components/layout/PageContainer";
 
 type Step = "shipping" | "delivery" | "payment" | "review";
@@ -24,7 +24,7 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<"standard" | "express">("standard");
-  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal" | "cod">("stripe");
+  const [paymentMethod, setPaymentMethod] = useState<"cod">("cod");
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressForm, setAddressForm] = useState({
     title: "",
@@ -153,6 +153,7 @@ export default function CheckoutPage() {
         .insert({
           user_id: user.id,
           address_id: selectedAddressId,
+          status: "Pending",
           subtotal,
           tax: 0, // Simplified
           shipping_cost: calculateShipping(),
@@ -218,6 +219,23 @@ export default function CheckoutPage() {
         console.log("[CHECKOUT] Order confirmation email sent successfully");
       } else {
         console.warn("[CHECKOUT] Order confirmation email failed to send (order still placed)");
+      }
+
+      const invoiceSent = await sendInvoiceEmail(
+        user.email || "",
+        user.user_metadata?.full_name || "Valued Customer",
+        order.id,
+        subtotal,
+        calculateShipping(),
+        0,
+        discount,
+        finalTotal
+      );
+
+      if (invoiceSent) {
+        console.log("[CHECKOUT] Invoice email sent successfully");
+      } else {
+        console.warn("[CHECKOUT] Invoice email failed to send");
       }
 
       clearCart();
@@ -543,35 +561,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <label
-                      className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === "stripe" ? "border-accent-gold bg-accent-gold/5" : "border-border dark:border-border bg-surface/30 hover:border-accent-gold dark:hover:border-white/30"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={paymentMethod === "stripe"}
-                        onChange={() => setPaymentMethod("stripe")}
-                        className="mr-4 accent-accent-gold"
-                      />
-                      <div className="flex-1 font-semibold text-foreground dark:text-foreground dark:text-white">Credit Card (Stripe)</div>
-                    </label>
-
-                    <label
-                      className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === "paypal" ? "border-accent-gold bg-accent-gold/5" : "border-border dark:border-border bg-surface/30 hover:border-accent-gold dark:hover:border-white/30"}`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment"
-                        checked={paymentMethod === "paypal"}
-                        onChange={() => setPaymentMethod("paypal")}
-                        className="mr-4 accent-accent-gold"
-                      />
-                      <div className="flex-1 font-semibold text-foreground dark:text-foreground dark:text-white">PayPal</div>
-                    </label>
-
-                    <label
-                      className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === "cod" ? "border-accent-gold bg-accent-gold/5" : "border-border dark:border-border bg-surface/30 hover:border-accent-gold dark:hover:border-white/30"}`}
-                    >
+                    <label className="flex items-center p-4 rounded-xl border border-accent-gold bg-accent-gold/5 transition-all">
                       <input
                         type="radio"
                         name="payment"

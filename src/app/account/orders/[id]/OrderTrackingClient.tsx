@@ -8,6 +8,7 @@ import Link from "next/link";
 
 const ORDER_STATUSES = [
   "Pending",
+  "Paid",
   "Accepted",
   "Processing",
   "Shipped",
