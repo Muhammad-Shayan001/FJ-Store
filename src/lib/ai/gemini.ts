@@ -3,7 +3,7 @@
  * Uses the official Gemini REST API endpoint
  */
 
-export const GEMINI_MODEL = "gemini-pro";
+export const GEMINI_MODEL = "gemini-1.5-flash-latest";
 export const EMBEDDING_MODEL = "embedding-001";
 
 /**
@@ -21,33 +21,58 @@ export async function generateGeminiContent(
     throw new Error("GEMINI_API_KEY is not set in environment variables.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  // Try multiple API versions and model names for compatibility
+  const endpoints = [
+    `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+  ];
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: config?.maxOutputTokens || 1000,
-        temperature: config?.temperature || 0.7,
-      },
-    }),
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            maxOutputTokens: config?.maxOutputTokens || 1000,
+            temperature: config?.temperature || 0.7,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (text) {
+          return text;
+        }
+      } else {
+        const errorData = await response.json();
+        lastError = new Error(
+          `Gemini API error: ${errorData.error?.message || response.statusText}`
+        );
+        console.warn(`[Gemini] Failed with endpoint ${url}: ${lastError.message}`);
+        continue;
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.warn(`[Gemini] Endpoint failed: ${lastError.message}`);
+      continue;
+    }
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("No text in Gemini response");
-  }
-
-  return text;
+  // All endpoints failed
+  throw (
+    lastError ||
+    new Error(
+      "Gemini API failed: Could not reach any endpoint. Check your API key and internet connection."
+    )
+  );
 }
 
 /**
@@ -67,44 +92,68 @@ export async function generateGeminiChat(
     throw new Error("GEMINI_API_KEY is not set in environment variables.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  // Try multiple API versions and model names for compatibility
+  const endpoints = [
+    `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
+  ];
 
   const conversationHistory = messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.content }],
   }));
 
-  const requestBody: any = {
+  const buildRequestBody = () => ({
     contents: conversationHistory,
     generationConfig: {
       maxOutputTokens: config?.maxOutputTokens || 500,
       temperature: config?.temperature || 0.7,
     },
-  };
-
-  if (systemInstruction) {
-    requestBody.systemInstruction = {
-      parts: [{ text: systemInstruction }],
-    };
-  }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody),
+    ...(systemInstruction && {
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+    }),
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+  let lastError: Error | null = null;
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestBody()),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (text) {
+          return text;
+        }
+      } else {
+        const errorData = await response.json();
+        lastError = new Error(
+          `Gemini API error: ${errorData.error?.message || response.statusText}`
+        );
+        console.warn(`[Gemini Chat] Failed with endpoint ${url}: ${lastError.message}`);
+        continue;
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.warn(`[Gemini Chat] Endpoint failed: ${lastError.message}`);
+      continue;
+    }
   }
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("No text in Gemini response");
-  }
-
-  return text;
+  // All endpoints failed
+  throw (
+    lastError ||
+    new Error(
+      "Gemini Chat API failed: Could not reach any endpoint. Check your API key and internet connection."
+    )
+  );
 }
