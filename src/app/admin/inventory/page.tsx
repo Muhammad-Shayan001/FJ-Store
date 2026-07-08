@@ -115,38 +115,27 @@ export default function AdminInventoryPage() {
 
     try {
       // 1. Update product stock level
-      const { error: prodErr } = await supabase
-        .from("products")
-        .update({
+      const response = await fetch("/api/admin/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
           stock_quantity: newStock,
-          stock_status: newStock > 0 ? "in_stock" : "out_of_stock",
-        })
-        .eq("id", id);
+          quantity_changed: diff,
+          reason: reasonInputs[id] || "Manual inventory adjustment",
+        }),
+      });
 
-      if (prodErr) {
-        console.error("Product update error:", prodErr);
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        console.error("Inventory API error:", result);
         addNotification(
           "error",
           "Failed to update stock",
-          `${prodErr.message || "Check permissions in Supabase RLS policies."}`
-        );
-        setUpdatingId(null);
-        return;
-      }
-
-      // 2. Insert into inventory log
-      const { error: logErr } = await supabase.from("inventory_logs").insert({
-        product_id: id,
-        quantity_changed: diff,
-        reason: reasonInputs[id] || "Manual inventory adjustment",
-      });
-
-      if (logErr) {
-        console.error("Log insert error:", logErr);
-        addNotification(
-          "error",
-          "Stock updated but failed to log",
-          `${logErr.message || "The inventory log entry could not be recorded."}`
+          `${result.error || "Check permissions in Supabase policies."}`
         );
         setUpdatingId(null);
         return;

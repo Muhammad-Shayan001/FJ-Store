@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { Product } from "@/lib/types/product";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Heart, Search, ShoppingBag } from "lucide-react";
 import { useCartStore } from "@/lib/store/useCartStore";
@@ -47,15 +46,14 @@ export function ProductCard({ product }: { product: Product }) {
       </button>
 
       {/* Image Container */}
-      <div className="relative aspect-4/5 overflow-hidden bg-gray-100">
+      <div className="relative w-full bg-gray-100" style={{ aspectRatio: "4/5" }}>
         {imageUrl ? (
-          <Image
+          // Use regular img tag for all external URLs (Cloudinary, ImageKit, data-URLs)
+          <img
             src={imageUrl}
             alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transform group-hover:scale-105 transition-transform duration-700"
-            priority={false}
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+            loading="lazy"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.style.display = "none";
