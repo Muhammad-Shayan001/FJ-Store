@@ -17,8 +17,17 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui";
-import { Loader2, Save, ArrowUpDown, History } from "lucide-react";
+import { Loader2, Save, ArrowUpDown, History, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { format } from "date-fns";
+
+type NotificationType = "success" | "error" | "info";
+
+interface Notification {
+  id: string;
+  type: NotificationType;
+  message: string;
+  details?: string;
+}
 
 export default function AdminInventoryPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -27,35 +36,55 @@ export default function AdminInventoryPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [stockChanges, setStockChanges] = useState<Record<string, number>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const supabase = createBrowserClient();
+
+  const addNotification = (type: NotificationType, message: string, details?: string) => {
+    const id = Date.now().toString();
+    const notification: Notification = { id, type, message, details };
+    setNotifications((prev) => [...prev, notification]);
+
+    // Auto-remove after 6 seconds
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 6000);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   const fetchData = async () => {
     setLoading(true);
-    const [prodRes, logRes] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id, name, sku, stock_quantity, regular_price, categories(name)")
-        .order("name"),
-      supabase
-        .from("inventory_logs")
-        .select("*, products(name)")
-        .order("created_at", { ascending: false })
-        .limit(30),
-    ]);
+    try {
+      const [prodRes, logRes] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, sku, stock_quantity, regular_price, categories(name)")
+          .order("name"),
+        supabase
+          .from("inventory_logs")
+          .select("*, products(name)")
+          .order("created_at", { ascending: false })
+          .limit(30),
+      ]);
 
-    if (prodRes.data) {
-      setProducts(prodRes.data);
-      // Initialize stock changes and reasons
-      const initialChanges: Record<string, number> = {};
-      const initialReasons: Record<string, string> = {};
-      prodRes.data.forEach((p) => {
-        initialChanges[p.id] = p.stock_quantity || 0;
-        initialReasons[p.id] = "Restock / Adjust";
-      });
-      setStockChanges(initialChanges);
-      setReasonInputs(initialReasons);
+      if (prodRes.data) {
+        setProducts(prodRes.data);
+        const initialChanges: Record<string, number> = {};
+        const initialReasons: Record<string, string> = {};
+        prodRes.data.forEach((p) => {
+          initialChanges[p.id] = p.stock_quantity || 0;
+          initialReasons[p.id] = "Restock / Adjust";
+        });
+        setStockChanges(initialChanges);
+        setReasonInputs(initialReasons);
+      }
+      if (logRes.data) setLogs(logRes.data);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+      addNotification("error", "Failed to load inventory data", "Please check your connection and try again.");
     }
-    if (logRes.data) setLogs(logRes.data);
     setLoading(false);
   };
 
@@ -94,7 +123,16 @@ export default function AdminInventoryPage() {
         })
         .eq("id", id);
 
-      if (prodErr) throw prodErr;
+      if (prodErr) {
+        console.error("Product update error:", prodErr);
+        addNotification(
+          "error",
+          "Failed to update stock",
+          `${prodErr.message || "Check permissions in Supabase RLS policies."}`
+        );
+        setUpdatingId(null);
+        return;
+      }
 
       // 2. Insert into inventory log
       const { error: logErr } = await supabase.from("inventory_logs").insert({
@@ -103,13 +141,34 @@ export default function AdminInventoryPage() {
         reason: reasonInputs[id] || "Manual inventory adjustment",
       });
 
-      if (logErr) throw logErr;
+      if (logErr) {
+        console.error("Log insert error:", logErr);
+        addNotification(
+          "error",
+          "Stock updated but failed to log",
+          `${logErr.message || "The inventory log entry could not be recorded."}`
+        );
+        setUpdatingId(null);
+        return;
+      }
+
+      // Success!
+      const productName = products.find((p) => p.id === id)?.name || "Product";
+      addNotification(
+        "success",
+        `Stock updated successfully`,
+        `${productName}: ${diff > 0 ? "+" : ""}${diff} items (Total: ${newStock})`
+      );
 
       // Refresh list
       await fetchData();
     } catch (err) {
       console.error("Failed to update stock:", err);
-      alert("Error updating inventory. Check permissions/logs.");
+      addNotification(
+        "error",
+        "Unexpected error",
+        err instanceof Error ? err.message : "An unexpected error occurred while updating inventory."
+      );
     } finally {
       setUpdatingId(null);
     }
@@ -117,6 +176,47 @@ export default function AdminInventoryPage() {
 
   return (
     <div className="space-y-8">
+      {/* Notifications Container */}
+      <div className="fixed top-24 right-6 z-50 space-y-3 max-w-md">
+        {notifications.map((notif) => (
+          <div
+            key={notif.id}
+            className={`
+              animate-in fade-in slide-in-from-right-8 duration-300
+              rounded-2xl border backdrop-blur-md p-4 flex gap-4 items-start
+              shadow-lg hover:shadow-xl transition-all duration-300
+              ${
+                notif.type === "success"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  : notif.type === "error"
+                    ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"
+                    : "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400"
+              }
+            `}
+          >
+            <div className="flex-shrink-0 mt-0.5">
+              {notif.type === "success" ? (
+                <CheckCircle2 size={20} className="text-emerald-500" />
+              ) : notif.type === "error" ? (
+                <AlertCircle size={20} className="text-red-500" />
+              ) : (
+                <AlertCircle size={20} className="text-blue-500" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-sm">{notif.message}</h3>
+              {notif.details && <p className="text-xs mt-1 opacity-90">{notif.details}</p>}
+            </div>
+            <button
+              onClick={() => removeNotification(notif.id)}
+              className="flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
       <div className="bg-gradient-to-r from-surface/80 to-surface/40 border border-accent-gold/10 px-6 md:px-10 py-8 rounded-2xl">
         <h1 className="text-3xl font-heading font-bold text-foreground dark:text-white mb-2">Inventory Management</h1>
