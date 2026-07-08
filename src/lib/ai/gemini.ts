@@ -3,8 +3,8 @@
  * Uses the official Gemini REST API endpoint
  */
 
-export const GEMINI_MODEL = "gemini-1.5-flash";
-export const EMBEDDING_MODEL = "text-embedding-004";
+export const GEMINI_MODEL = "gemini-pro";
+export const EMBEDDING_MODEL = "embedding-001";
 
 /**
  * Generate content from a text prompt using Gemini via REST API
