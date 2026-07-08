@@ -8,7 +8,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  source?: "groq" | "gemini";
+  source?: "groq" | "gemini" | "fallback";
 }
 
 export default function AiAssistant() {
@@ -28,7 +28,7 @@ export default function AiAssistant() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiSource, setApiSource] = useState<"groq" | "gemini" | null>(null);
+  const [apiSource, setApiSource] = useState<"groq" | "gemini" | "fallback" | null>(null);
   const [displayedCharCount, setDisplayedCharCount] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -179,7 +179,7 @@ export default function AiAssistant() {
                     {error 
                       ? '⚠️ Maintenance Mode' 
                       : apiSource 
-                        ? `✓ Running on ${apiSource === 'groq' ? '⚡ Groq' : '🔄 Gemini'}`
+                        ? `✓ Running on ${apiSource === 'groq' ? '⚡ Groq' : apiSource === 'fallback' ? '🛟 Fallback' : '🔄 Gemini'}`
                         : 'AI-Powered Shopping Help'
                     }
                   </p>

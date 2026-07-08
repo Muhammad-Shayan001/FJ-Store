@@ -13,6 +13,8 @@ interface ChatMessage {
   content: string;
 }
 
+export type ChatbotSource = "groq" | "gemini" | "fallback";
+
 /**
  * Get AI response with automatic fallback
  * Tries Groq first, falls back to Gemini if Groq fails
@@ -26,7 +28,7 @@ export async function getChatbotResponse(
   systemContext: string
 ): Promise<{
   reply: string;
-  source: "groq" | "gemini";
+  source: ChatbotSource;
   error?: string;
 }> {
   // ============================================
@@ -80,7 +82,7 @@ export async function getChatbotResponse(
     // ============================================
     return {
       reply: "Sorry, the chatbot is currently unavailable. Please try again later or contact support@fjstore.com for assistance.",
-      source: "gemini",
+      source: "fallback",
       error: `Both APIs failed. Last error: ${geminiErrorMsg}`,
     };
   }

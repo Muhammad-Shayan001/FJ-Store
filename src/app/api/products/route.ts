@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient, getServiceRoleConfigErrorMessage } from "@/lib/supabase/server";
 
-async function getServiceRoleClient() {
+async function getPublicClient() {
   return await createClient();
+}
+
+async function getAdminClient() {
+  try {
+    return await createServiceRoleClient();
+  } catch {
+    throw new Error(getServiceRoleConfigErrorMessage());
+  }
 }
 
 function sanitizeProductPayload(payload: Record<string, unknown>) {
@@ -83,7 +91,7 @@ function sanitizeProductPayload(payload: Record<string, unknown>) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await getServiceRoleClient();
+    const supabase = await getPublicClient();
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug");
     const published = searchParams.get("published") !== "false";
@@ -177,7 +185,7 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Product id is required." }, { status: 400 });
-    const supabase = await getServiceRoleClient();
+    const supabase = await getAdminClient();
     // Delete related images first
     await supabase.from("product_images").delete().eq("product_id", id);
     const { error } = await supabase.from("products").delete().eq("id", id);
@@ -200,7 +208,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
       }
     }
 
-    const supabase = await getServiceRoleClient();
+    const supabase = await getAdminClient();
 
     let response: { error: { message?: string } | null; data: any };
     if (mode === "update") {
@@ -242,6 +250,7 @@ async function saveProduct(request: Request, mode: "insert" | "update") {
     return NextResponse.json({ product: response?.data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to save product.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("service-role") ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

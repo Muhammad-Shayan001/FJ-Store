@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient, getServiceRoleConfigErrorMessage } from "@/lib/supabase/server";
+
+async function getPublicClient() {
+  return await createClient();
+}
 
 async function getAdminClient() {
-  return await createClient();
+  try {
+    return await createServiceRoleClient();
+  } catch {
+    throw new Error(getServiceRoleConfigErrorMessage());
+  }
 }
 
 // GET /api/subcategories
 export async function GET(request: Request) {
-  const supabase = await getAdminClient();
+  const supabase = await getPublicClient();
   const { searchParams } = new URL(request.url);
   const categoryId = searchParams.get("category_id");
   let query = supabase.from("subcategories").select("*, categories(name)").order("name");

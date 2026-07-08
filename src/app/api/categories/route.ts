@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient, getServiceRoleConfigErrorMessage } from "@/lib/supabase/server";
+
+async function getPublicClient() {
+  return await createClient();
+}
 
 async function getAdminClient() {
-  return await createClient();
+  try {
+    return await createServiceRoleClient();
+  } catch {
+    throw new Error(getServiceRoleConfigErrorMessage());
+  }
 }
 
 // GET /api/categories
 export async function GET() {
-  const supabase = await getAdminClient();
+  const supabase = await getPublicClient();
   const { data, error } = await supabase.from("categories").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ categories: data });
