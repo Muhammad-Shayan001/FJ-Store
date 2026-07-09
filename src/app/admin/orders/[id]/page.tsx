@@ -31,6 +31,10 @@ async function loadOrderDirectly(orderId: string) {
       supabase = await createClient();
     }
 
+    if (!orderId || orderId === "undefined") {
+      return { order: null, error: "Invalid order ID." };
+    }
+
     const { data: order, error } = await supabase
       .from("orders")
       .select(`
@@ -57,11 +61,20 @@ async function loadOrderDirectly(orderId: string) {
   }
 }
 
-export default async function AdminOrderDetailsPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function AdminOrderDetailsPage({ params }: { params: { id?: string } }) {
+  const id = params?.id;
   let order: any = null;
   let errorMessage: string | null = null;
   let redirectToLogin = false;
+
+  if (!id || id === "undefined") {
+    return (
+      <div className="container mx-auto py-24 text-center">
+        <h1 className="text-2xl font-bold text-foreground dark:text-white mb-4">Unable to load order</h1>
+        <p className="text-muted">No valid order ID was provided. Please go back to the orders list and try again.</p>
+      </div>
+    );
+  }
 
   const { response, result } = await loadOrderFromApi(id);
 

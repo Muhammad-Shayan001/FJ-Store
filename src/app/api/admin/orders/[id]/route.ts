@@ -3,8 +3,8 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const orderId = params.id;
-    if (!orderId) {
+    const orderId = params?.id;
+    if (!orderId || orderId === "undefined") {
       return NextResponse.json({ success: false, error: "Order ID is required." }, { status: 400 });
     }
 
