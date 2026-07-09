@@ -11,7 +11,6 @@ import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
 
 const ORDER_STATUSES = [
   "Pending",
-  "Paid",
   "Accepted",
   "Processing",
   "Shipped",
