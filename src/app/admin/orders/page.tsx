@@ -181,13 +181,13 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                       </td>
                       <td className="p-3 text-right">
                         {order.id ? (
-                          <Link href={`/admin/orders/${order.id}`}>
-                            <Button asChild size="sm" variant="ghost" className="h-8 w-8 p-0">
-                              <a>
-                                <Eye size={16} />
-                              </a>
-                            </Button>
-                          </Link>
+                          <a
+                            href={`/admin/orders/${order.id}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-foreground hover:bg-hover-bg transition-colors"
+                            aria-label={`View order ${order.id}`}
+                          >
+                            <Eye size={16} />
+                          </a>
                         ) : (
                           <span className="text-xs text-muted">Invalid order</span>
                         )}
