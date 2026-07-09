@@ -69,9 +69,10 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   }
 
   const orderList = error || !orders ? [] : orders;
+  const validOrderList = orderList.filter((o) => o?.id && o.id !== "undefined");
   const loadError = error ? (error.message || String(error)) : null;
 
-  const filteredOrders = orderList.filter((o) => {
+  const filteredOrders = validOrderList.filter((o) => {
     const matchesSearch =
       o.id.toLowerCase().includes(normalizedSearch) ||
       o.user?.full_name?.toLowerCase().includes(normalizedSearch) ||
@@ -155,7 +156,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                   {filteredOrders.map((order) => (
                     <tr key={order.id} className="border-b border-border dark:border-border/50 hover:bg-surface dark:hover:bg-black/5 dark:bg-white/5 transition-colors">
                       <td className="p-3 text-sm font-mono text-foreground dark:text-foreground dark:text-white">
-                        {order.id.split("-")[0].toUpperCase()}
+                        {order.id ? order.id.split("-")[0].toUpperCase() : "UNKNOWN"}
                       </td>
                       <td className="p-3 text-sm text-foreground dark:text-foreground dark:text-white">
                         {format(new Date(order.created_at), "MMM d, yyyy")}
@@ -179,11 +180,15 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <Link href={`/admin/orders/${order.id}`}>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <Eye size={16} />
-                          </Button>
-                        </Link>
+                        {order.id ? (
+                          <Link href={`/admin/orders/${order.id}`}>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                              <Eye size={16} />
+                            </Button>
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-muted">Invalid order</span>
+                        )}
                       </td>
                     </tr>
                   ))}
