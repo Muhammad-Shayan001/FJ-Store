@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const { data: order, error: orderError } = await orderQueryClient
       .from("orders")
-      .select("user_id, status, user:profiles ( full_name, email )")
+      .select("user_id, status, user:profiles ( full_name )")
       .eq("id", orderId)
       .single();
 
@@ -90,6 +90,19 @@ export async function POST(request: Request) {
 
     if (!order) {
       return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
+    }
+
+    let customerEmail = "";
+    if (serviceSupabase && order.user_id) {
+      const { data: userDetails, error: userDetailsError } = await serviceSupabase
+        .from("auth.users")
+        .select("email")
+        .eq("id", order.user_id)
+        .single();
+
+      if (!userDetailsError && userDetails?.email) {
+        customerEmail = userDetails.email;
+      }
     }
 
     if (!isAdmin && order.user_id !== user.id) {

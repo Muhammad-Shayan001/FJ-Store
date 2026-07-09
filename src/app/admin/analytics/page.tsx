@@ -29,7 +29,7 @@ export default function AdminAnalyticsPage() {
     const fetchData = async () => {
       setLoading(true);
       const [orderRes, userCountRes, productCountRes] = await Promise.all([
-        supabase.from("orders").select("*, user:profiles(full_name, email)").order("total", { ascending: false }),
+        supabase.from("orders").select("*, user:profiles(full_name)").order("total", { ascending: false }),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
         supabase.from("products").select("*", { count: "exact", head: true }),
       ]);
