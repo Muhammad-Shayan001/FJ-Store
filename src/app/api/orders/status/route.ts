@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const { data: order, error: orderError } = await orderQueryClient
       .from("orders")
-      .select("user_id, status, user:profiles ( full_name, email )")
+      .select("user_id, status, user:profiles ( full_name )")
       .eq("id", orderId)
       .single();
 

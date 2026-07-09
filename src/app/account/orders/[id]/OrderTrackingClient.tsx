@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from "@/components/ui";
 import { Download, Package, Truck, CheckCircle, Clock } from "lucide-react";
-import { generateAndDownloadInvoice, InvoiceData } from "@/lib/services/invoice";
+import { generateAndDownloadInvoice, generateAndDownloadDeliverySlip, InvoiceData } from "@/lib/services/invoice";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -36,32 +36,39 @@ export default function OrderTrackingClient({
   const isCancelled = status === "Cancelled" || status === "Returned";
   const supabase = createBrowserClient();
 
-  const handleDownloadInvoice = () => {
-    const addressStr = order.addresses
+  const addressStr = order.addresses
+    ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
+    : "No address provided";
+
+  const invoiceData: InvoiceData = {
+    orderId: order.id,
+    orderDate: order.created_at,
+    customerName,
+    customerEmail,
+    shippingAddress: addressStr,
+    deliveryAddress: order.addresses
       ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
-      : "No address provided";
+      : addressStr,
+    items: order.order_items.map((item: any) => ({
+      name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
+      quantity: item.quantity,
+      price: Number(item.price_at_time),
+      total: Number(item.price_at_time) * item.quantity,
+    })),
+    subtotal: Number(order.subtotal),
+    tax: Number(order.tax),
+    shipping: Number(order.shipping_cost),
+    discount: Number(order.discount),
+    grandTotal: Number(order.total),
+    status: order.status,
+  };
 
-    const invoiceData: InvoiceData = {
-      orderId: order.id,
-      orderDate: order.created_at,
-      customerName,
-      customerEmail,
-      shippingAddress: addressStr,
-      items: order.order_items.map((item: any) => ({
-        name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
-        quantity: item.quantity,
-        price: Number(item.price_at_time),
-        total: Number(item.price_at_time) * item.quantity,
-      })),
-      subtotal: Number(order.subtotal),
-      tax: Number(order.tax),
-      shipping: Number(order.shipping_cost),
-      discount: Number(order.discount),
-      grandTotal: Number(order.total),
-      status: order.status,
-    };
-
+  const handleDownloadInvoice = () => {
     generateAndDownloadInvoice(invoiceData, order.user_id || "guest", supabase);
+  };
+
+  const handleDownloadDeliverySlip = () => {
+    generateAndDownloadDeliverySlip(invoiceData, order.user_id || "guest", supabase);
   };
 
   return (
@@ -71,13 +78,17 @@ export default function OrderTrackingClient({
           <h1 className="text-3xl font-heading font-bold text-foreground dark:text-foreground dark:text-white">Order Details</h1>
           <p className="text-muted mt-1">Order #{order.id.substring(0, 8).toUpperCase()}</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={handleDownloadInvoice} className="gap-2">
             <Download size={18} />
-            Download Invoice & Delivery Slip
+            Download Invoice
+          </Button>
+          <Button variant="secondary" onClick={handleDownloadDeliverySlip} className="gap-2">
+            <Download size={18} />
+            Download Delivery Slip
           </Button>
           <Link href="/account">
-            <Button variant="secondary">Back to Account</Button>
+            <Button variant="ghost">Back to Account</Button>
           </Link>
         </div>
       </div>

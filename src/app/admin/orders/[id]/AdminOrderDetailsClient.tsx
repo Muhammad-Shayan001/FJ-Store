@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from "@/compo
 import { ArrowLeft, RefreshCw, Printer } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { generateAndDownloadInvoice, InvoiceData } from "@/lib/services/invoice";
+import { generateAndDownloadInvoice, generateAndDownloadDeliverySlip, InvoiceData } from "@/lib/services/invoice";
 import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
 
 const ORDER_STATUSES = [
@@ -51,32 +51,37 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
     }
   };
 
-  const handlePrint = () => {
-    const addressStr = order.addresses
-      ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
-      : "No address provided";
+  const addressStr = order.addresses
+    ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
+    : "No address provided";
 
-    const invoiceData: InvoiceData = {
-      orderId: safeOrder.id,
-      orderDate: safeOrder.created_at,
-      customerName: safeOrder.user?.full_name || "Guest",
-      customerEmail: safeOrder.user?.email || "",
-      shippingAddress: addressStr,
-      items: (safeOrder.order_items || []).map((item: any) => ({
-        name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
-        quantity: item.quantity || 0,
-        price: Number(item.price_at_time || 0),
-        total: Number(item.price_at_time || 0) * (item.quantity || 0),
-      })),
-      subtotal: Number(safeOrder.subtotal || 0),
-      tax: Number(safeOrder.tax || 0),
-      shipping: Number(safeOrder.shipping_cost || 0),
-      discount: Number(safeOrder.discount || 0),
-      grandTotal: Number(safeOrder.total || 0),
-      status: safeOrder.status,
-    };
+  const invoiceData: InvoiceData = {
+    orderId: safeOrder.id,
+    orderDate: safeOrder.created_at,
+    customerName: safeOrder.user?.full_name || "Guest",
+    customerEmail: safeOrder.user?.email || "",
+    shippingAddress: addressStr,
+    deliveryAddress: addressStr,
+    items: (safeOrder.order_items || []).map((item: any) => ({
+      name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
+      quantity: item.quantity || 0,
+      price: Number(item.price_at_time || 0),
+      total: Number(item.price_at_time || 0) * (item.quantity || 0),
+    })),
+    subtotal: Number(safeOrder.subtotal || 0),
+    tax: Number(safeOrder.tax || 0),
+    shipping: Number(safeOrder.shipping_cost || 0),
+    discount: Number(safeOrder.discount || 0),
+    grandTotal: Number(safeOrder.total || 0),
+    status: safeOrder.status,
+  };
 
+  const handleDownloadInvoice = () => {
     generateAndDownloadInvoice(invoiceData, order.user_id || "guest", supabase);
+  };
+
+  const handleDownloadDeliverySlip = () => {
+    generateAndDownloadDeliverySlip(invoiceData, order.user_id || "guest", supabase);
   };
 
   return (
@@ -97,10 +102,14 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrint} className="gap-2">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={handleDownloadInvoice} className="gap-2">
             <Printer size={16} />
-            Download Invoice & Delivery Slip
+            Download Invoice
+          </Button>
+          <Button variant="secondary" onClick={handleDownloadDeliverySlip} className="gap-2">
+            <Printer size={16} />
+            Download Delivery Slip
           </Button>
         </div>
       </div>
