@@ -208,8 +208,22 @@ CREATE POLICY "Allow public read access to subcategories" ON public.subcategorie
 DROP POLICY IF EXISTS "Allow public read access to products" ON public.products;
 CREATE POLICY "Allow public read access to products" ON public.products FOR SELECT USING (is_published = true);
 
+DROP POLICY IF EXISTS "Admins can select all products" ON public.products;
+CREATE POLICY "Admins can select all products" ON public.products FOR SELECT USING (
+    EXISTS(
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+);
+
 DROP POLICY IF EXISTS "Allow public read access to product_variants" ON public.product_variants;
 CREATE POLICY "Allow public read access to product_variants" ON public.product_variants FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can select all product_variants" ON public.product_variants;
+CREATE POLICY "Admins can select all product_variants" ON public.product_variants FOR SELECT USING (
+    EXISTS(
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+);
 
 DROP POLICY IF EXISTS "Allow public read access to product_images" ON public.product_images;
 CREATE POLICY "Allow public read access to product_images" ON public.product_images FOR SELECT USING (true);
@@ -226,6 +240,13 @@ CREATE POLICY "Users can update own addresses" ON public.addresses FOR UPDATE US
 
 DROP POLICY IF EXISTS "Users can select own addresses" ON public.addresses;
 CREATE POLICY "Users can select own addresses" ON public.addresses FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can select all addresses" ON public.addresses;
+CREATE POLICY "Admins can select all addresses" ON public.addresses FOR SELECT USING (
+    EXISTS(
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+);
 
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.addresses;
 CREATE POLICY "Users can delete own addresses" ON public.addresses FOR DELETE USING (auth.uid() = user_id);
@@ -252,6 +273,13 @@ CREATE POLICY "Users can insert order items for own orders" ON public.order_item
 DROP POLICY IF EXISTS "Users can select order items for own orders" ON public.order_items;
 CREATE POLICY "Users can select order items for own orders" ON public.order_items FOR SELECT USING (
     EXISTS(SELECT 1 FROM public.orders WHERE public.orders.id = public.order_items.order_id AND public.orders.user_id = auth.uid())
+);
+
+DROP POLICY IF EXISTS "Admins can select all order items" ON public.order_items;
+CREATE POLICY "Admins can select all order items" ON public.order_items FOR SELECT USING (
+    EXISTS(
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
 );
 
 DROP POLICY IF EXISTS "Users can insert reviews for purchased products" ON public.reviews;
