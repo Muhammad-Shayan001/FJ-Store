@@ -34,16 +34,16 @@ export async function GET(request: Request, { params }: { params: { id: string }
     }
 
     let serviceSupabase;
+    let orderQueryClient = authSupabase;
+
     try {
       serviceSupabase = await createServiceRoleClient();
+      orderQueryClient = serviceSupabase;
     } catch (serviceError) {
-      return NextResponse.json(
-        { success: false, error: "Service role client not configured. Please set SUPABASE_SERVICE_ROLE_KEY." },
-        { status: 500 }
-      );
+      console.warn("[ADMIN ORDER API] Service role client unavailable, using authenticated admin client.", serviceError);
     }
 
-    const { data: order, error: orderError } = await serviceSupabase
+    const { data: order, error: orderError } = await orderQueryClient
       .from("orders")
       .select(`
         *,
