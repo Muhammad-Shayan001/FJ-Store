@@ -30,6 +30,7 @@ export default function AdminOrderDetailsPage() {
     } else if (typeof pathname === "string") {
       nextId = parseOrderIdFromPath(pathname);
     }
+    console.debug("[ADMIN ORDER DETAIL] rawId:", rawId, "pathname:", pathname, "resolvedId:", nextId);
     setResolvedId(nextId);
   }, [rawId, pathname]);
 
@@ -48,7 +49,10 @@ export default function AdminOrderDetailsPage() {
 
     const loadOrder = async () => {
       try {
-        const response = await fetch(`/api/admin/orders/${id}`, {
+        const endpoint = `/api/admin/orders/${resolvedId}`;
+        console.debug("[ADMIN ORDER DETAIL] fetching order from", endpoint);
+
+        const response = await fetch(endpoint, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
