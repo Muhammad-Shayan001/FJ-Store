@@ -22,7 +22,8 @@ const ORDER_STATUSES = [
 ];
 
 export default function AdminOrderDetailsClient({ order }: { order: any }) {
-  const [status, setStatus] = useState(order.status);
+  const safeOrder = order || {};
+  const [status, setStatus] = useState(safeOrder.status || "Pending");
   const [loading, setLoading] = useState(false);
   const supabase = createBrowserClient();
 
@@ -57,23 +58,23 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
       : "No address provided";
 
     const invoiceData: InvoiceData = {
-      orderId: order.id,
-      orderDate: order.created_at,
-      customerName: order.user?.full_name || "Guest",
-      customerEmail: order.user?.email || "",
+      orderId: safeOrder.id,
+      orderDate: safeOrder.created_at,
+      customerName: safeOrder.user?.full_name || "Guest",
+      customerEmail: safeOrder.user?.email || "",
       shippingAddress: addressStr,
-      items: order.order_items.map((item: any) => ({
+      items: (safeOrder.order_items || []).map((item: any) => ({
         name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
-        quantity: item.quantity,
-        price: Number(item.price_at_time),
-        total: Number(item.price_at_time) * item.quantity,
+        quantity: item.quantity || 0,
+        price: Number(item.price_at_time || 0),
+        total: Number(item.price_at_time || 0) * (item.quantity || 0),
       })),
-      subtotal: Number(order.subtotal),
-      tax: Number(order.tax),
-      shipping: Number(order.shipping_cost),
-      discount: Number(order.discount),
-      grandTotal: Number(order.total),
-      status: order.status,
+      subtotal: Number(safeOrder.subtotal || 0),
+      tax: Number(safeOrder.tax || 0),
+      shipping: Number(safeOrder.shipping_cost || 0),
+      discount: Number(safeOrder.discount || 0),
+      grandTotal: Number(safeOrder.total || 0),
+      status: safeOrder.status,
     };
 
     generateAndDownloadInvoice(invoiceData, order.user_id || "guest", supabase);
@@ -113,7 +114,7 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {order.order_items.map((item: any) => (
+                {(safeOrder.order_items || []).map((item: any) => (
                   <div key={item.id} className="flex justify-between items-center py-2 border-b border-border dark:border-border/50 last:border-0">
                     <div>
                       <p className="font-medium text-foreground dark:text-foreground dark:text-white">{item.products?.name}</p>
@@ -124,8 +125,8 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-foreground dark:text-foreground dark:text-white">PKR {(Number(item.price_at_time) * 277).toLocaleString()} x {item.quantity}</p>
-                      <p className="font-medium text-accent-gold">PKR {(Number(item.price_at_time) * item.quantity * 277).toLocaleString()}</p>
+                      <p className="text-sm text-foreground dark:text-foreground dark:text-white">PKR {(Number(item.price_at_time || 0) * 277).toLocaleString()} x {item.quantity || 0}</p>
+                      <p className="font-medium text-accent-gold">PKR {(Number(item.price_at_time || 0) * (item.quantity || 0) * 277).toLocaleString()}</p>
                     </div>
                   </div>
                 ))}
@@ -140,15 +141,15 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted">Subtotal</span>
-                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.subtotal) * 277).toLocaleString()}</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(safeOrder.subtotal || 0) * 277).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Shipping</span>
-                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.shipping_cost) * 277).toLocaleString()}</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(safeOrder.shipping_cost || 0) * 277).toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">Tax</span>
-                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(order.tax) * 277).toLocaleString()}</span>
+                <span className="text-foreground dark:text-foreground dark:text-white">PKR {(Number(safeOrder.tax || 0) * 277).toLocaleString()}</span>
               </div>
               {Number(order.discount) > 0 && (
                 <div className="flex justify-between text-success">
@@ -211,11 +212,11 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
             <CardContent className="space-y-4 text-sm">
               <div>
                 <p className="text-muted mb-1">Name</p>
-                <p className="text-foreground dark:text-white font-medium">{order.user?.full_name || "Guest"}</p>
+                <p className="text-foreground dark:text-white font-medium">{safeOrder.user?.full_name || "Guest"}</p>
               </div>
               <div>
                 <p className="text-muted mb-1">Email</p>
-                <p className="text-foreground dark:text-foreground dark:text-white">{order.user?.email || "N/A"}</p>
+                <p className="text-foreground dark:text-foreground dark:text-white">{safeOrder.user?.email || "N/A"}</p>
               </div>
               <div>
                 <p className="text-muted mb-1">Shipping Address</p>
