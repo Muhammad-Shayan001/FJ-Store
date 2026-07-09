@@ -19,7 +19,7 @@ export default async function OrderTrackingPage({ params }: { params: Promise<{ 
       addresses (*),
       order_items (
         *,
-        products (name),
+        products (name, slug, categories (slug), subcategories (slug)),
         product_variants (name, value)
       )
     `)

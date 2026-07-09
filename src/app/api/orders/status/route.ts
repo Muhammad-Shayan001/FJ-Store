@@ -105,6 +105,8 @@ export async function POST(request: Request) {
       }
     }
 
+    const emailAddress = customerEmail || user.email || "";
+
     if (!isAdmin && order.user_id !== user.id) {
       return NextResponse.json({ success: false, error: "Not authorized to update this order." }, { status: 403 });
     }
@@ -149,16 +151,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const emailAddress = order.user?.email || user.email || "";
     const customerName = order.user?.full_name || (user.user_metadata as any)?.full_name || "Valued Customer";
 
-    if (emailAddress) {
+    if (newStatus === "Delivered" && emailAddress) {
       await sendOrderStatusUpdateEmail(
         emailAddress,
         customerName,
         orderId,
         newStatus,
-        `Your order has been updated to ${newStatus}. Thank you for shopping with FJ Store Pakistan!`
+        `Your order has been delivered. Thank you for shopping with FJ Store Pakistan!`
       );
     }
 

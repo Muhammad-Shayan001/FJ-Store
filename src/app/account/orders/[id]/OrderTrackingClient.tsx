@@ -124,7 +124,7 @@ export default function OrderTrackingClient({
                 </div>
               </div>
 
-              {status === "Delivered" && (
+                      {status === "Delivered" && (
                 <div className="mb-4 rounded-2xl border border-border bg-surface/70 p-5 text-sm text-foreground dark:text-foreground">
                   <p className="font-semibold mb-2">Confirm receipt</p>
                   <p className="text-muted mb-4">
@@ -156,6 +156,39 @@ export default function OrderTrackingClient({
                   >
                     {markingReceived ? "Updating…" : "Mark as Received"}
                   </Button>
+                </div>
+              )}
+
+              {status === "Received" && (
+                <div className="mb-4 rounded-2xl border border-accent-gold bg-accent-gold/5 p-5 text-sm text-foreground dark:text-foreground">
+                  <p className="font-semibold mb-2">Thanks for confirming receipt</p>
+                  <p className="text-muted mb-4">
+                    Your order is now marked as <strong>Received</strong>. Please leave a review for the products you purchased.
+                  </p>
+                  <div className="grid gap-3">
+                    {order.order_items.map((item: any) => {
+                      const product = item.products;
+                      const productUrl = product?.slug && product?.categories?.slug && product?.subcategories?.slug
+                        ? `/shop/${product.categories.slug}/${product.subcategories.slug}/${product.slug}`
+                        : null;
+
+                      return (
+                        <div key={item.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border p-4 bg-white/75 dark:bg-black/40">
+                          <div>
+                            <p className="font-medium text-foreground dark:text-foreground dark:text-white">{product?.name || "Product"}</p>
+                            <p className="text-xs text-muted">Thank you for receiving this item.</p>
+                          </div>
+                          {productUrl ? (
+                            <Link href={productUrl} className="inline-flex items-center justify-center rounded-xl bg-accent-gold px-4 py-2 text-sm font-semibold text-black hover:bg-accent-gold/90">
+                              Leave a review
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted">Review available on product page.</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>
