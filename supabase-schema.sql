@@ -236,6 +236,14 @@ CREATE POLICY "Users can insert own orders" ON public.orders FOR INSERT WITH CHE
 DROP POLICY IF EXISTS "Users can select own orders" ON public.orders;
 CREATE POLICY "Users can select own orders" ON public.orders FOR SELECT USING (auth.uid() = user_id);
 
+-- Allow admin users (profiles.role = 'admin') to select all orders so admin UI works without service-role key
+DROP POLICY IF EXISTS "Admins can select all orders" ON public.orders;
+CREATE POLICY "Admins can select all orders" ON public.orders FOR SELECT USING (
+        EXISTS(
+            SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+        )
+);
+
 DROP POLICY IF EXISTS "Users can insert order items for own orders" ON public.order_items;
 CREATE POLICY "Users can insert order items for own orders" ON public.order_items FOR INSERT WITH CHECK (
     EXISTS(SELECT 1 FROM public.orders WHERE public.orders.id = public.order_items.order_id AND public.orders.user_id = auth.uid())

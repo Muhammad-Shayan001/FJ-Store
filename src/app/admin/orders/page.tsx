@@ -40,6 +40,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   error = response.error;
 
   const orderList = error || !orders ? [] : orders;
+  const loadError = error ? (error.message || String(error)) : null;
 
   const filteredOrders = orderList.filter((o) => {
     const matchesSearch =
@@ -91,10 +92,23 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
         </CardHeader>
         <CardContent>
           {filteredOrders.length === 0 ? (
-            <div className="py-12 text-center text-muted">
-              <Package size={32} className="mx-auto mb-3 opacity-50" />
-              <p>No orders found.</p>
-            </div>
+            loadError ? (
+              <div className="py-8 px-6 rounded-xl border border-error/10 bg-error/5 text-error">
+                <div className="flex items-start gap-4">
+                  <Package size={32} className="opacity-60" />
+                  <div>
+                    <h3 className="font-semibold">Unable to load orders</h3>
+                    <p className="text-sm text-muted mb-2">{loadError}</p>
+                    <p className="text-sm">Ensure the Supabase service-role key is configured (SUPABASE_SERVICE_ROLE_KEY) or that your admin user has the correct RLS policies in the database.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-muted">
+                <Package size={32} className="mx-auto mb-3 opacity-50" />
+                <p>No orders found.</p>
+              </div>
+            )
           ) : (
             <div className="overflow-x-auto">
               <Table>
