@@ -16,9 +16,11 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   let supabase;
   let orders: any[] | null = null;
   let error: any = null;
+  let isServiceRoleClient = false;
 
   try {
     supabase = await createServiceRoleClient();
+    isServiceRoleClient = true;
   } catch (serviceRoleError) {
     console.warn("[ADMIN ORDERS] Service role client unavailable, falling back to authenticated admin client.", serviceRoleError);
     supabase = await createClient();
@@ -28,16 +30,43 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
     .from("orders")
     .select(`
       id,
+      user_id,
       created_at,
       total,
       status,
-      user:profiles ( full_name, email )
+      user:profiles ( full_name )
     `)
     .order("created_at", { ascending: false });
 
   const response = await query;
   orders = response.data;
   error = response.error;
+
+  // If we have a service-role client, fetch user emails from auth.users and attach them
+  if (isServiceRoleClient && orders && orders.length > 0) {
+    try {
+      const userIds = Array.from(new Set(orders.map((o: any) => o.user_id).filter(Boolean)));
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from("auth.users")
+          .select("id, email")
+          .in("id", userIds);
+
+        if (!usersError && usersData) {
+          const emailMap = new Map(usersData.map((u: any) => [u.id, u.email]));
+          orders = orders.map((o: any) => ({
+            ...o,
+            user: {
+              ...(o.user || {}),
+              email: emailMap.get(o.user_id) || o.user?.email,
+            },
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("[ADMIN ORDERS] Failed to enrich user emails", e);
+    }
+  }
 
   const orderList = error || !orders ? [] : orders;
   const loadError = error ? (error.message || String(error)) : null;
