@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+function getOrderIdFromRequest(request: Request, params: { id?: string | string[] } | undefined) {
+  if (params?.id) {
+    if (typeof params.id === "string") {
+      return params.id;
+    }
+    if (Array.isArray(params.id) && params.id.length > 0) {
+      return params.id[0];
+    }
+  }
+
   try {
-    const orderId = params?.id;
+    const url = new URL(request.url);
+    const segments = url.pathname.split("/").filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(request: Request, { params }: { params: { id?: string | string[] } }) {
+  try {
+    const orderId = getOrderIdFromRequest(request, params);
     if (!orderId || orderId === "undefined") {
       return NextResponse.json({ success: false, error: "Order ID is required." }, { status: 400 });
     }

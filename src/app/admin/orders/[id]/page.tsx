@@ -1,13 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminOrderDetailsClient from "./AdminOrderDetailsClient";
+
+function parseOrderIdFromPath(pathname: string | null) {
+  if (!pathname) return null;
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return null;
+  return segments[segments.length - 1];
+}
 
 export default function AdminOrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string | undefined;
+  const rawId = params?.id;
+  const id = useMemo(() => {
+    if (typeof rawId === "string") {
+      return rawId;
+    }
+    if (Array.isArray(rawId) && rawId.length > 0) {
+      return rawId[0];
+    }
+    if (typeof window !== "undefined") {
+      return parseOrderIdFromPath(window.location.pathname);
+    }
+    return undefined;
+  }, [rawId]);
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
