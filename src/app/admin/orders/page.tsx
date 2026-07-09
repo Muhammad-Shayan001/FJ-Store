@@ -1,5 +1,5 @@
 ﻿import { format } from "date-fns";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createClient, createServiceRoleClient, getServiceRoleConfigErrorMessage } from "@/lib/supabase/server";
 import { Package, Eye } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Table, Badge, Button } from "@/components/ui";
 import Link from "next/link";
@@ -13,8 +13,18 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   const searchText = Array.isArray(searchParams?.search) ? searchParams?.search[0] : searchParams?.search;
   const normalizedSearch = (searchText || "").trim().toLowerCase();
 
-  const supabase = await createServiceRoleClient();
-  const { data: orders, error } = await supabase
+  let supabase;
+  let orders: any[] | null = null;
+  let error: any = null;
+
+  try {
+    supabase = await createServiceRoleClient();
+  } catch (serviceRoleError) {
+    console.warn("[ADMIN ORDERS] Service role client unavailable, falling back to authenticated admin client.", serviceRoleError);
+    supabase = await createClient();
+  }
+
+  const query = supabase
     .from("orders")
     .select(`
       id,
@@ -24,6 +34,10 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
       user:profiles ( full_name, email )
     `)
     .order("created_at", { ascending: false });
+
+  const response = await query;
+  orders = response.data;
+  error = response.error;
 
   const orderList = error || !orders ? [] : orders;
 

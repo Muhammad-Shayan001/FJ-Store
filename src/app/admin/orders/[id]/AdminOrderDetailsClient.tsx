@@ -28,48 +28,27 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
 
   const handleStatusUpdate = async (newStatus: string) => {
     setLoading(true);
-    
-    // 1. Update Order Status
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: newStatus })
-      .eq("id", order.id);
 
-    if (error) {
-      alert("Failed to update order status.");
+    try {
+      const response = await fetch("/api/orders/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, newStatus }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to update order status.");
+      }
+
+      setStatus(newStatus);
+      console.log(`[ADMIN ORDER] Order ${order.id} status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("[ADMIN ORDER] Status update error", error);
+      alert(error instanceof Error ? error.message : "Failed to update order status.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setStatus(newStatus);
-
-    // 2. Insert Notification
-    if (order.user_id) {
-      await supabase
-        .from("notifications")
-        .insert({
-          user_id: order.user_id,
-          title: `Order Status: ${newStatus}`,
-          message: `Your order #${order.id.substring(0, 8).toUpperCase()} is now ${newStatus}.`
-        });
-    }
-
-    // 3. Send Email Notification
-    const emailSent = await sendOrderStatusUpdateEmail(
-      order.user?.email || "guest@example.com",
-      order.user?.full_name || "Valued Customer",
-      order.id,
-      newStatus,
-      `Your order has been updated to ${newStatus}. Thank you for shopping with FJ Store Pakistan!`
-    );
-
-    if (emailSent) {
-      console.log(`[ADMIN ORDER] Status update email sent for order ${order.id}`);
-    } else {
-      console.warn(`[ADMIN ORDER] Status update email failed for order ${order.id} (status still updated)`);
-    }
-
-    setLoading(false);
   };
 
   const handlePrint = () => {

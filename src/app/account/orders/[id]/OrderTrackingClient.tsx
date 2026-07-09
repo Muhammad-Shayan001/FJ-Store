@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from "@/components/ui";
 import { Download, Package, Truck, CheckCircle, Clock } from "lucide-react";
 import { generateAndDownloadInvoice, InvoiceData } from "@/lib/services/invoice";
@@ -13,7 +14,7 @@ const ORDER_STATUSES = [
   "Processing",
   "Shipped",
   "Delivered",
-  "Received"
+  "Received",
 ];
 
 const getStatusIndex = (status: string) => {
@@ -29,8 +30,10 @@ export default function OrderTrackingClient({
   customerName: string, 
   customerEmail: string 
 }) {
-  const currentIndex = getStatusIndex(order.status);
-  const isCancelled = order.status === "Cancelled" || order.status === "Returned";
+  const [status, setStatus] = useState(order.status);
+  const [markingReceived, setMarkingReceived] = useState(false);
+  const currentIndex = getStatusIndex(status);
+  const isCancelled = status === "Cancelled" || status === "Returned";
   const supabase = createBrowserClient();
 
   const handleDownloadInvoice = () => {
@@ -87,39 +90,75 @@ export default function OrderTrackingClient({
         <CardContent>
           {isCancelled ? (
             <div className="p-6 text-center border border-error/20 bg-error/5 rounded-xl text-error font-medium">
-              This order has been {order.status}.
+              This order has been {status}.
             </div>
           ) : (
-            <div className="relative pt-8 pb-4">
-              <div className="absolute top-12 left-0 w-full h-1 bg-black/10 dark:bg-white/10 -z-10 rounded-full" />
-              <div 
-                className="absolute top-12 left-0 h-1 bg-accent-gold -z-10 rounded-full transition-all duration-500" 
-                style={{ width: `${(Math.max(0, currentIndex) / (ORDER_STATUSES.length - 1)) * 100}%` }}
-              />
-              
-              <div className="flex justify-between">
-                {ORDER_STATUSES.map((status, index) => {
-                  const isCompleted = index <= currentIndex;
-                  const isCurrent = index === currentIndex;
-                  
-                  return (
-                    <div key={status} className="flex flex-col items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
-                        isCompleted ? "bg-accent-gold border-accent-gold text-black" : "bg-surface border-border dark:border-white/20 text-muted"
-                      }`}>
-                        {index === 0 && <Clock size={16} />}
-                        {(index > 0 && index < 3) && <Package size={16} />}
-                        {(index === 3 || index === 4) && <Truck size={16} />}
-                        {index === 5 && <CheckCircle size={16} />}
+            <>
+              <div className="relative pt-8 pb-4">
+                <div className="absolute top-12 left-0 w-full h-1 bg-black/10 dark:bg-white/10 -z-10 rounded-full" />
+                <div 
+                  className="absolute top-12 left-0 h-1 bg-accent-gold -z-10 rounded-full transition-all duration-500" 
+                  style={{ width: `${(Math.max(0, currentIndex) / (ORDER_STATUSES.length - 1)) * 100}%` }}
+                />
+                
+                <div className="flex justify-between">
+                  {ORDER_STATUSES.map((statusItem, index) => {
+                    const isCompleted = index <= currentIndex;
+                    
+                    return (
+                      <div key={statusItem} className="flex flex-col items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${
+                          isCompleted ? "bg-accent-gold border-accent-gold text-black" : "bg-surface border-border dark:border-white/20 text-muted"
+                        }`}>
+                          {index === 0 && <Clock size={16} />}
+                          {(index > 0 && index < 3) && <Package size={16} />}
+                          {(index === 3 || index === 4) && <Truck size={16} />}
+                          {index === 5 && <CheckCircle size={16} />}
+                        </div>
+                        <span className={`text-sm font-medium ${isCompleted ? "text-foreground dark:text-foreground dark:text-white" : "text-muted"}`}>
+                          {statusItem}
+                        </span>
                       </div>
-                      <span className={`text-sm font-medium ${isCompleted ? "text-foreground dark:text-foreground dark:text-white" : "text-muted"}`}>
-                        {status}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+
+              {status === "Delivered" && (
+                <div className="mb-4 rounded-2xl border border-border bg-surface/70 p-5 text-sm text-foreground dark:text-foreground">
+                  <p className="font-semibold mb-2">Confirm receipt</p>
+                  <p className="text-muted mb-4">
+                    Once your delivery arrives, click the button below to mark the order as <strong>Received</strong>.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      setMarkingReceived(true);
+                      try {
+                        const response = await fetch("/api/orders/status", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ orderId: order.id, newStatus: "Received" }),
+                        });
+                        const result = await response.json();
+                        if (!response.ok || !result.success) {
+                          throw new Error(result.error || "Unable to update order status.");
+                        }
+                        setStatus("Received");
+                      } catch (error) {
+                        console.error("[ORDER TRACKING] Mark received error", error);
+                        alert(error instanceof Error ? error.message : "Failed to mark order as received.");
+                      } finally {
+                        setMarkingReceived(false);
+                      }
+                    }}
+                    disabled={markingReceived}
+                  >
+                    {markingReceived ? "Updating…" : "Mark as Received"}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

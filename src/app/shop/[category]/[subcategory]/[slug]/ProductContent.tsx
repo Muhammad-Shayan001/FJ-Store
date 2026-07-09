@@ -15,6 +15,14 @@ export default function ProductContent({ product }: { product: any }) {
   const [mainImageIndex, setMainImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewPending, setReviewPending] = useState(false);
+  const [canSubmitReview, setCanSubmitReview] = useState(false);
+  const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
+  const [reviewEligibilityLoading, setReviewEligibilityLoading] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState("");
   const { user } = useAuthStore();
   const supabase = createClient();
   const addItem = useCartStore((state) => state.addItem);
@@ -36,6 +44,8 @@ export default function ProductContent({ product }: { product: any }) {
   useEffect(() => {
     if (!user) {
       setIsFavorite(false);
+      setCanSubmitReview(false);
+      setEligibleOrderId(null);
       return;
     }
 
@@ -57,11 +67,114 @@ export default function ProductContent({ product }: { product: any }) {
       }
     }
 
+    async function loadReviewEligibility() {
+      setReviewEligibilityLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("id, status, order_items(product_id)")
+          .eq("user_id", user.id)
+          .eq("status", "Received")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        const eligibleOrder = data?.find((order: any) =>
+          order.order_items?.some((item: any) => item.product_id === product.id)
+        );
+
+        if (!eligibleOrder) {
+          return;
+        }
+
+        const { data: existingReview, error: reviewError } = await supabase
+          .from("reviews")
+          .select("id, is_approved")
+          .eq("product_id", product.id)
+          .eq("user_id", user.id)
+          .eq("order_id", eligibleOrder.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (reviewError) {
+          throw reviewError;
+        }
+
+        if (mounted) {
+          setEligibleOrderId(eligibleOrder.id);
+
+          if (existingReview) {
+            setCanSubmitReview(false);
+            setReviewPending(true);
+            setReviewMessage(
+              existingReview.is_approved
+                ? "You already submitted a review for this product. It is now visible on the page."
+                : "Your review is already submitted and pending approval."
+            );
+          } else {
+            setCanSubmitReview(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load review eligibility", error);
+      } finally {
+        if (mounted) setReviewEligibilityLoading(false);
+      }
+    }
+
     loadFavoriteState();
+    loadReviewEligibility();
+
     return () => {
       mounted = false;
     };
   }, [product.id, supabase, user]);
+
+  const handleSubmitReview = async () => {
+    if (!user || !eligibleOrderId) {
+      setReviewMessage("You must be signed in and have received this product to leave a review.");
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      setReviewMessage("Please add a comment before submitting your review.");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewMessage("");
+
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          orderId: eligibleOrderId,
+          rating: reviewRating,
+          comment: reviewComment,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to submit review.");
+      }
+
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewPending(true);
+      setCanSubmitReview(false);
+      setReviewMessage("Review submitted successfully and is pending approval.");
+    } catch (error) {
+      console.error("[REVIEW SUBMIT]", error);
+      setReviewMessage(error instanceof Error ? error.message : "Failed to submit review.");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -324,6 +437,97 @@ export default function ProductContent({ product }: { product: any }) {
               </div>
               <p className="text-sm text-muted">{product.reviews?.length || 0} reviews</p>
             </div>
+          </div>
+
+          <div className="space-y-4 mb-10">
+            {reviewEligibilityLoading ? (
+              <div className="rounded-3xl border border-border bg-surface/50 p-6 text-center text-muted">
+                Checking review eligibility...
+              </div>
+            ) : user ? (
+              canSubmitReview ? (
+                reviewPending ? (
+                  <div className="rounded-3xl border border-accent-gold bg-accent-gold/10 p-6 text-center text-accent-gold">
+                    Thank you! Your review has been submitted and is pending approval.
+                  </div>
+                ) : (
+                  <Card className="rounded-3xl border border-accent-gold/20 bg-accent-gold/5">
+                    <CardContent className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-semibold text-foreground dark:text-foreground dark:text-white">
+                          Leave a review for this product
+                        </h3>
+                        <p className="text-sm text-muted">You can submit a review after receiving this product.</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground dark:text-foreground dark:text-white">Your Rating</label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4, 5].map((value) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => setReviewRating(value)}
+                              className={`rounded-full p-2 transition-colors ${
+                                reviewRating >= value
+                                  ? "bg-accent-gold text-black"
+                                  : "bg-surface border border-border text-muted hover:bg-accent-gold/10"
+                              }`}
+                            >
+                              <Star size={18} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="reviewComment" className="text-sm font-medium text-foreground dark:text-foreground dark:text-white">
+                          Your Review
+                        </label>
+                        <textarea
+                          id="reviewComment"
+                          value={reviewComment}
+                          onChange={(event) => setReviewComment(event.target.value)}
+                          rows={5}
+                          className="w-full rounded-3xl border border-border bg-surface p-4 text-sm text-foreground dark:bg-surface/70 dark:text-foreground focus:outline-none focus:ring-2 focus:ring-accent-gold"
+                          placeholder="Tell us what you liked about the product and how it performed."
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-sm text-muted">
+                          Reviews are moderated and published after approval.
+                        </div>
+                        <Button
+                          onClick={handleSubmitReview}
+                          disabled={reviewSubmitting}
+                          className="self-start"
+                        >
+                          {reviewSubmitting ? "Submitting…" : "Submit Review"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              ) : (
+                <div className="rounded-3xl border border-border bg-surface/50 p-6 text-muted">
+                  Reviews are available after you receive this product and your order is marked as Received.
+                </div>
+              )
+            ) : (
+              <div className="rounded-3xl border border-border bg-surface/50 p-6 text-center text-muted">
+                <p className="mb-3">Sign in to submit a review once you receive this product.</p>
+                <Link href="/login">
+                  <Button variant="secondary">Sign In</Button>
+                </Link>
+              </div>
+            )}
+
+            {reviewMessage && (
+              <div className="rounded-3xl border border-border bg-surface/50 p-4 text-sm text-foreground dark:text-foreground dark:text-white">
+                {reviewMessage}
+              </div>
+            )}
           </div>
 
           {product.reviews && product.reviews.length > 0 ? (
