@@ -49,6 +49,15 @@ export interface EmailOptions {
   data: any;
 }
 
+interface OrderStatusEmailData {
+  orderId: string;
+  status: string;
+  customerName: string;
+  message?: string;
+  reviewPrompt?: boolean;
+  updatedAt: string;
+}
+
 const emailTemplates: Record<string, (data: any) => { html: string; text: string }> = {
   order_confirmation: (data) => ({
     html: `
@@ -122,7 +131,7 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
     `,
   }),
 
-  order_status: (data) => ({
+  order_status: (data: OrderStatusEmailData) => ({
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d4af37;">Order Update</h2>
@@ -136,6 +145,8 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         </div>
         
         ${data.message ? `<p>${data.message}</p>` : ''}
+        
+        ${data.reviewPrompt ? `<p style="margin-top: 16px;">Once you receive your delivery, please come back and leave a review for your purchase. Your feedback helps us improve.</p>` : ''}
         
         <p style="color: #666; font-size: 12px;">
           Track your order: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://fjstore.pk'}/account/orders/${data.orderId}" style="color: #d4af37;">View Order</a>
@@ -154,6 +165,8 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
       Updated: ${data.updatedAt}
       
       ${data.message || ''}
+      
+      ${data.reviewPrompt ? "Once you receive your delivery, please come back and leave a review for your purchase. Your feedback helps us improve." : ''}
     `,
   }),
 

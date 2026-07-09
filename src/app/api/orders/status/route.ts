@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     const { data: order, error: orderError } = await orderQueryClient
       .from("orders")
-      .select("user_id, status, user:profiles ( full_name )")
+      .select("user_id, status, user:profiles ( full_name, email )")
       .eq("id", orderId)
       .single();
 
@@ -102,10 +102,12 @@ export async function POST(request: Request) {
 
       if (!userDetailsError && userDetails?.email) {
         customerEmail = userDetails.email;
+      } else if (userDetailsError) {
+        console.warn("[ORDER STATUS API] Unable to retrieve buyer email from auth.users:", userDetailsError.message);
       }
     }
 
-    const emailAddress = customerEmail || user.email || "";
+    const emailAddress = customerEmail || order.user?.email || "";
 
     if (!isAdmin && order.user_id !== user.id) {
       return NextResponse.json({ success: false, error: "Not authorized to update this order." }, { status: 403 });
@@ -143,7 +145,8 @@ export async function POST(request: Request) {
     }
 
     if (order.user_id) {
-      await serviceSupabase.from("notifications").insert({
+      const notificationsClient = serviceSupabase || orderQueryClient;
+      await notificationsClient.from("notifications").insert({
         user_id: order.user_id,
         title: `Order Status Updated: ${newStatus}`,
         message: `Your order #${orderId.substring(0, 8).toUpperCase()} is now ${newStatus}.`,
@@ -153,14 +156,19 @@ export async function POST(request: Request) {
 
     const customerName = order.user?.full_name || (user.user_metadata as any)?.full_name || "Valued Customer";
 
-    if (newStatus === "Delivered" && emailAddress) {
-      await sendOrderStatusUpdateEmail(
-        emailAddress,
-        customerName,
-        orderId,
-        newStatus,
-        `Your order has been delivered. Thank you for shopping with FJ Store Pakistan!`
-      );
+    if (newStatus === "Delivered") {
+      if (emailAddress) {
+        await sendOrderStatusUpdateEmail(
+          emailAddress,
+          customerName,
+          orderId,
+          newStatus,
+          "Your order has been delivered. Once you receive your package, please leave a review for your purchase.",
+          true
+        );
+      } else {
+        console.warn("[ORDER STATUS API] Delivered email was skipped because no customer email was found.");
+      }
     }
 
     return NextResponse.json({ success: true });

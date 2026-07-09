@@ -72,7 +72,8 @@ export async function sendOrderStatusUpdateEmail(
   customerName: string,
   orderId: string,
   newStatus: string,
-  message?: string
+  message?: string,
+  reviewPrompt?: boolean
 ): Promise<boolean> {
   try {
     console.log(`[EMAIL HELPER] Sending status update to ${customerEmail}: ${newStatus}`);
@@ -88,6 +89,7 @@ export async function sendOrderStatusUpdateEmail(
           status: newStatus,
           customerName,
           message,
+          reviewPrompt,
           updatedAt: new Date().toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",

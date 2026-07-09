@@ -8,6 +8,7 @@ export interface InvoiceData {
   customerName: string;
   customerEmail: string;
   shippingAddress: string;
+  deliveryAddress?: string;
   items: {
     name: string;
     quantity: number;
@@ -119,6 +120,41 @@ export const generateAndDownloadInvoice = async (
   doc.setFont("helvetica", "normal");
   doc.setTextColor(150);
   doc.text("Thank you for shopping with FJ Store!", 105, 280, { align: "center" });
+
+  // Delivery slip page
+  doc.addPage();
+  doc.setFontSize(22);
+  doc.setTextColor(40);
+  doc.text("DELIVERY SLIP", 14, 20);
+
+  doc.setFontSize(12);
+  doc.text("Order ID:", 14, 34);
+  doc.setFont("helvetica", "bold");
+  doc.text(`INV-${data.orderId.substring(0, 8).toUpperCase()}`, 60, 34);
+  doc.setFont("helvetica", "normal");
+
+  doc.text("Deliver To:", 14, 46);
+  const deliveryAddress = data.deliveryAddress || data.shippingAddress;
+  const deliveryLines = doc.splitTextToSize(deliveryAddress, 120);
+  doc.text(deliveryLines, 14, 54);
+
+  doc.setFontSize(12);
+  doc.setTextColor(100);
+  doc.text("Please ensure this slip is attached to the package for delivery verification.", 14, 100);
+  doc.text("Delivery details:", 14, 110);
+
+  doc.setFontSize(10);
+  doc.setTextColor(40);
+  doc.text(`Customer: ${data.customerName}`, 14, 118);
+  doc.text(`Email: ${data.customerEmail}`, 14, 124);
+  doc.text(`Order Date: ${new Date(data.orderDate).toLocaleDateString()}`, 14, 130);
+
+  doc.setFontSize(10);
+  doc.setTextColor(40);
+  doc.text("Items:", 14, 142);
+  const slipItems = data.items.map((item) => `${item.name} x${item.quantity}`);
+  const slipItemLines = doc.splitTextToSize(slipItems.join("\n"), 180);
+  doc.text(slipItemLines, 14, 150);
 
   // 1. Generate ArrayBuffer instead of local download
   console.log("[INVOICE] Converting to ArrayBuffer...");

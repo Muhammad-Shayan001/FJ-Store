@@ -100,7 +100,7 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
         <div className="flex gap-2">
           <Button variant="outline" onClick={handlePrint} className="gap-2">
             <Printer size={16} />
-            Print Order
+            Download Invoice & Delivery Slip
           </Button>
         </div>
       </div>

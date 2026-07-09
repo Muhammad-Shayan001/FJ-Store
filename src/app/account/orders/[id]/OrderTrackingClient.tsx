@@ -74,7 +74,7 @@ export default function OrderTrackingClient({
         <div className="flex gap-4">
           <Button variant="outline" onClick={handleDownloadInvoice} className="gap-2">
             <Download size={18} />
-            Download Invoice
+            Download Invoice & Delivery Slip
           </Button>
           <Link href="/account">
             <Button variant="secondary">Back to Account</Button>
