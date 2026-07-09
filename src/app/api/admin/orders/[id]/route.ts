@@ -77,8 +77,15 @@ export async function GET(request: Request, { params }: { params: { id?: string 
       .eq("id", orderId)
       .single();
 
-    if (orderError || !order) {
-      return NextResponse.json({ success: false, error: orderError?.message || "Order not found." }, { status: 404 });
+    if (orderError) {
+      return NextResponse.json(
+        { success: false, error: orderError.message || "Unable to retrieve the order." },
+        { status: 500 }
+      );
+    }
+
+    if (!order) {
+      return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, data: order });

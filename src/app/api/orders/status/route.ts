@@ -46,22 +46,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
 
-    const { data: profile } = await authSupabase
+    const { data: profile, error: profileError } = await authSupabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    const isAdmin = profile?.role === "admin";
-    const serviceSupabase = await createServiceRoleClient();
+    if (profileError) {
+      return NextResponse.json({ success: false, error: profileError.message }, { status: 500 });
+    }
 
-    const { data: order, error: orderError } = await serviceSupabase
+    const role = profile?.role?.toString().toLowerCase();
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase() || "";
+    const userEmail = user.email?.toLowerCase() || "";
+    const isAdmin =
+      role === "admin" ||
+      role === "superadmin" ||
+      role === "owner" ||
+      (adminEmail !== "" && userEmail === adminEmail);
+
+    let serviceSupabase;
+    let orderQueryClient = authSupabase;
+
+    try {
+      serviceSupabase = await createServiceRoleClient();
+      orderQueryClient = serviceSupabase;
+    } catch (serviceError) {
+      console.warn("[ORDER STATUS API] Service role client unavailable, using authenticated client.", serviceError);
+    }
+
+    const { data: order, error: orderError } = await orderQueryClient
       .from("orders")
       .select("user_id, status, user:profiles ( full_name, email )")
       .eq("id", orderId)
       .single();
 
-    if (orderError || !order) {
+    if (orderError) {
+      return NextResponse.json(
+        { success: false, error: orderError.message || "Unable to retrieve the order." },
+        { status: 500 }
+      );
+    }
+
+    if (!order) {
       return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
     }
 
@@ -89,7 +116,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: "Order status is already set." });
     }
 
-    const { error: updateError } = await serviceSupabase
+    const updateClient = serviceSupabase || authSupabase;
+    const { error: updateError } = await updateClient
       .from("orders")
       .update({ status: newStatus })
       .eq("id", orderId);

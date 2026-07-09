@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import AdminOrderDetailsClient from "./AdminOrderDetailsClient";
 
 function parseOrderIdFromPath(pathname: string | null) {
@@ -13,27 +13,32 @@ function parseOrderIdFromPath(pathname: string | null) {
 
 export default function AdminOrderDetailsPage() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
   const rawId = params?.id;
-  const id = useMemo(() => {
-    if (typeof rawId === "string") {
-      return rawId;
-    }
-    if (Array.isArray(rawId) && rawId.length > 0) {
-      return rawId[0];
-    }
-    if (typeof window !== "undefined") {
-      return parseOrderIdFromPath(window.location.pathname);
-    }
-    return undefined;
-  }, [rawId]);
-
+  const [resolvedId, setResolvedId] = useState<string | null | undefined>(undefined);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id || id === "undefined") {
+    let nextId: string | null | undefined;
+    if (typeof rawId === "string") {
+      nextId = rawId;
+    } else if (Array.isArray(rawId) && rawId.length > 0) {
+      nextId = rawId[0];
+    } else if (typeof pathname === "string") {
+      nextId = parseOrderIdFromPath(pathname);
+    }
+    setResolvedId(nextId);
+  }, [rawId, pathname]);
+
+  useEffect(() => {
+    if (resolvedId === undefined) {
+      return;
+    }
+
+    if (!resolvedId || resolvedId === "undefined") {
       setErrorMessage("No valid order ID was provided.");
       setLoading(false);
       return;
@@ -76,7 +81,7 @@ export default function AdminOrderDetailsPage() {
     loadOrder();
 
     return () => controller.abort();
-  }, [id, router]);
+  }, [resolvedId, router]);
 
   if (loading) {
     return (
@@ -87,7 +92,7 @@ export default function AdminOrderDetailsPage() {
     );
   }
 
-  if (!id || errorMessage) {
+  if (!resolvedId || errorMessage) {
     return (
       <div className="container mx-auto py-24 text-center">
         <h1 className="text-2xl font-bold text-foreground dark:text-white mb-4">Unable to load order</h1>
