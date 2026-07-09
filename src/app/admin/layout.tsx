@@ -18,12 +18,18 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, email")
+    .select("role")
     .eq("id", user.id)
     .single();
 
   const role = profile?.role?.toString().toLowerCase();
-  const isAdmin = role === "admin" || role === "superadmin" || role === "owner" || profile?.email === process.env.ADMIN_EMAIL;
+  const userEmail = user.email?.toLowerCase() || "";
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase() || "";
+  const isAdmin =
+    role === "admin" ||
+    role === "superadmin" ||
+    role === "owner" ||
+    (adminEmail !== "" && userEmail === adminEmail);
 
   if (!isAdmin) {
     redirect("/");
