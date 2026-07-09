@@ -2,7 +2,7 @@
 import { createClient, createServiceRoleClient, getServiceRoleConfigErrorMessage } from "@/lib/supabase/server";
 import { Package, Eye } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Table, Badge, Button } from "@/components/ui";
-import Link from "next/link";
+import { OrderActionButton } from "@/components/admin/OrderActionButton";
 
 interface AdminOrdersPageProps {
   searchParams?: { status?: string | string[]; search?: string | string[] };
@@ -181,13 +181,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                       </td>
                       <td className="p-3 text-right">
                         {order.id ? (
-                          <a
-                            href={`/admin/orders/${order.id}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface text-foreground hover:bg-hover-bg transition-colors"
-                            aria-label={`View order ${order.id}`}
-                          >
-                            <Eye size={16} />
-                          </a>
+                          <OrderActionButton orderId={order.id} />
                         ) : (
                           <span className="text-xs text-muted">Invalid order</span>
                         )}

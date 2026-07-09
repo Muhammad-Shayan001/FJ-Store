@@ -6,10 +6,17 @@ export default async function AdminOrderDetailsPage({ params }: { params: { id?:
   const id = params?.id;
 
   if (!id || id === "undefined") {
-    redirect("/admin/orders");
+    return (
+      <div className="container mx-auto py-24 text-center">
+        <h1 className="text-2xl font-bold text-foreground dark:text-white mb-4">Unable to load order</h1>
+        <p className="text-muted">No valid order ID was provided. Please go back to the orders list and try again.</p>
+      </div>
+    );
   }
 
   let supabase;
+  let errorMessage: string | null = null;
+
   try {
     supabase = await createServiceRoleClient();
   } catch (serviceError) {
@@ -33,8 +40,16 @@ export default async function AdminOrderDetailsPage({ params }: { params: { id?:
     .single();
 
   if (error || !order) {
-    console.error("[ADMIN ORDER PAGE] Failed to load order:", error);
-    redirect("/admin/orders");
+    errorMessage = error?.message || "Order not found.";
+    console.error("[ADMIN ORDER PAGE] Failed to load order:", errorMessage);
+
+    return (
+      <div className="container mx-auto py-24 text-center">
+        <h1 className="text-2xl font-bold text-foreground dark:text-white mb-4">Unable to load order</h1>
+        <p className="text-muted">The selected order could not be loaded. Please try again later or go back to the orders list.</p>
+        <p className="text-sm text-red-500 mt-4">{errorMessage}</p>
+      </div>
+    );
   }
 
   return (
