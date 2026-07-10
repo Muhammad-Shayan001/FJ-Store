@@ -12,7 +12,7 @@ interface SendEmailParams {
   to: string;
   subject: string;
   template: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export async function sendOrderConfirmationEmail(
@@ -77,7 +77,11 @@ export async function sendOrderStatusUpdateEmail(
 ): Promise<boolean> {
   try {
     console.log(`[EMAIL HELPER] Sending status update to ${customerEmail}: ${newStatus}`);
-    const response = await fetch("/api/email", {
+    const baseUrl = typeof window === "undefined"
+      ? process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+      : "";
+
+    const response = await fetch(`${baseUrl}/api/email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -232,27 +236,36 @@ export async function sendVerificationEmail(
 
 export async function sendAdminNotificationEmail(
   notificationType: string,
-  data: any,
+  data: Record<string, unknown>,
   adminEmail: string
 ): Promise<boolean> {
   try {
     console.log(`[EMAIL HELPER] Sending admin notification: ${notificationType}`);
-    
+    const typedData = data as {
+      orderId?: string;
+      productName?: string;
+      alertType?: string;
+      reviewerName?: string;
+      rating?: number;
+      reviewComment?: string;
+      currentStock?: number;
+      reorderLevel?: number;
+    };
+
     let subject = "";
-    let template = "admin_notification";
 
     switch (notificationType) {
       case "new_order":
-        subject = `🛍️ New Order Received - Order #${data.orderId?.substring(0, 8).toUpperCase()}`;
+        subject = `🛍️ New Order Received - Order #${typedData.orderId?.substring(0, 8).toUpperCase()}`;
         break;
       case "low_stock":
-        subject = `⚠️ Low Stock Alert - ${data.productName}`;
+        subject = `⚠️ Low Stock Alert - ${typedData.productName}`;
         break;
       case "new_review":
-        subject = `⭐ New Review - ${data.productName}`;
+        subject = `⭐ New Review - ${typedData.productName}`;
         break;
       case "system_alert":
-        subject = `🚨 System Alert - ${data.alertType}`;
+        subject = `🚨 System Alert - ${typedData.alertType}`;
         break;
       default:
         subject = `Admin Notification - ${notificationType}`;

@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 
 // Create transporter on demand instead of at module load time
 function createTransporter() {
@@ -46,7 +46,7 @@ export interface EmailOptions {
   to: string;
   subject: string;
   template: "order_confirmation" | "password_reset" | "email_verification" | "invoice" | "order_status" | "admin_notification" | "newsletter";
-  data: any;
+  data: Record<string, unknown>;
 }
 
 interface OrderStatusEmailData {
@@ -58,19 +58,43 @@ interface OrderStatusEmailData {
   updatedAt: string;
 }
 
-const emailTemplates: Record<string, (data: any) => { html: string; text: string }> = {
-  order_confirmation: (data) => ({
-    html: `
+type EmailTemplateData = Record<string, unknown>;
+
+const emailTemplates: Record<string, (data: EmailTemplateData) => { html: string; text: string }> = {
+  order_confirmation: (data) => {
+    const typedData = data as {
+      customerName?: string;
+      orderId?: string;
+      orderDate?: string;
+      status?: string;
+      items?: Array<{ name?: string; quantity?: number; price?: number }>;
+      subtotal?: number;
+      shipping?: number;
+      tax?: number;
+      discount?: number;
+      grandTotal?: number;
+      shippingAddress?: string;
+    };
+    const items = typedData.items || [];
+    const itemRows = items
+      .map((item) => `<tr><td style="border: 1px solid #ddd; padding: 10px;">${item.name || "Item"}</td><td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity ?? 0}</td><td style="border: 1px solid #ddd; padding: 10px; text-align: right;">PKR ${((item.price ?? 0) * (item.quantity ?? 0)).toLocaleString()}</td></tr>`)
+      .join("");
+    const orderTextLines = items
+      .map((item) => `${item.name || "Item"} x${item.quantity ?? 0}: PKR ${((item.price ?? 0) * (item.quantity ?? 0)).toLocaleString()}`)
+      .join("\n");
+
+    return {
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d4af37;">Order Confirmed!</h2>
-        <p>Dear ${data.customerName},</p>
+        <p>Dear ${typedData.customerName || 'Customer'},</p>
         <p>Thank you for your order! Your order has been successfully placed.</p>
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
         
         <h3 style="color: #333;">Order Details</h3>
-        <p><strong>Order ID:</strong> ${data.orderId}</p>
-        <p><strong>Order Date:</strong> ${data.orderDate}</p>
-        <p><strong>Status:</strong> ${data.status}</p>
+        <p><strong>Order ID:</strong> ${typedData.orderId}</p>
+        <p><strong>Order Date:</strong> ${typedData.orderDate}</p>
+        <p><strong>Status:</strong> ${typedData.status}</p>
         
         <h3 style="color: #333;">Items</h3>
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -79,27 +103,21 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
             <th style="border: 1px solid #ddd; padding: 10px; text-align: center;">Qty</th>
             <th style="border: 1px solid #ddd; padding: 10px; text-align: right;">Price</th>
           </tr>
-          ${data.items.map((item: any) => `
-            <tr>
-              <td style="border: 1px solid #ddd; padding: 10px;">${item.name}</td>
-              <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">${item.quantity}</td>
-              <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">PKR ${(item.price * item.quantity).toLocaleString()}</td>
-            </tr>
-          `).join('')}
+          ${itemRows}
         </table>
         
         <hr style="border: none; border-top: 2px solid #d4af37; margin: 20px 0;">
         <div style="text-align: right; font-size: 18px; font-weight: bold; margin: 20px 0;">
           <span style="color: #333;">Total: </span>
-          <span style="color: #d4af37;">PKR ${data.grandTotal.toLocaleString()}</span>
+          <span style="color: #d4af37;">PKR ${((typedData.grandTotal ?? 0)).toLocaleString()}</span>
         </div>
         
         <h3 style="color: #333;">Shipping Address</h3>
-        <p>${data.shippingAddress}</p>
+        <p>${typedData.shippingAddress}</p>
         
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
         <p style="color: #666; font-size: 12px;">
-          You can track your order and view details at: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://fjstore.pk'}/account/orders/${data.orderId}" style="color: #d4af37;">View Your Order</a>
+          You can track your order and view details at: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://fjstore.pk'}/account/orders/${typedData.orderId}" style="color: #d4af37;">View Your Order</a>
         </p>
         
         <p style="color: #666; font-size: 12px;">
@@ -107,41 +125,44 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         </p>
       </div>
     `,
-    text: `
+      text: `
       Order Confirmed!
       
-      Dear ${data.customerName},
+      Dear ${typedData.customerName || 'Customer'},
       
       Thank you for your order! Your order has been successfully placed.
       
       Order Details:
-      Order ID: ${data.orderId}
-      Order Date: ${data.orderDate}
-      Status: ${data.status}
+      Order ID: ${typedData.orderId}
+      Order Date: ${typedData.orderDate}
+      Status: ${typedData.status}
       
       Items:
-      ${data.items.map((item: any) => `${item.name} x${item.quantity}: PKR ${(item.price * item.quantity).toLocaleString()}`).join('\n')}
+      ${orderTextLines}
       
-      Total: PKR ${data.grandTotal.toLocaleString()}
+      Total: PKR ${((typedData.grandTotal ?? 0)).toLocaleString()}
       
       Shipping Address:
-      ${data.shippingAddress}
+      ${typedData.shippingAddress}
       
       Thank you for shopping with FJ Store Pakistan!
     `,
-  }),
+    };
+  },
 
-  order_status: (data: OrderStatusEmailData) => ({
-    html: `
+  order_status: (data: EmailTemplateData) => {
+    const typedData = data as unknown as OrderStatusEmailData;
+    return {
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d4af37;">Order Update</h2>
-        <p>Dear ${data.customerName},</p>
+        <p>Dear ${typedData.customerName},</p>
         <p>Your order status has been updated.</p>
         
         <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p><strong>Order ID:</strong> ${data.orderId}</p>
-          <p><strong>New Status:</strong> <span style="color: #d4af37; font-weight: bold;">${data.status}</span></p>
-          <p><strong>Updated:</strong> ${data.updatedAt}</p>
+          <p><strong>Order ID:</strong> ${typedData.orderId}</p>
+          <p><strong>New Status:</strong> <span style="color: #d4af37; font-weight: bold;">${typedData.status}</span></p>
+          <p><strong>Updated:</strong> ${typedData.updatedAt}</p>
         </div>
         
         ${data.message ? `<p>${data.message}</p>` : ''}
@@ -149,36 +170,39 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         ${data.reviewPrompt ? `<p style="margin-top: 16px;">Once you receive your delivery, please come back and leave a review for your purchase. Your feedback helps us improve.</p>` : ''}
         
         <p style="color: #666; font-size: 12px;">
-          Track your order: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://fjstore.pk'}/account/orders/${data.orderId}" style="color: #d4af37;">View Order</a>
+          Track your order: <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://fjstore.pk'}/account/orders/${typedData.orderId}" style="color: #d4af37;">View Order</a>
         </p>
       </div>
     `,
     text: `
       Order Update
       
-      Dear ${data.customerName},
+      Dear ${typedData.customerName},
       
       Your order status has been updated.
       
-      Order ID: ${data.orderId}
-      New Status: ${data.status}
-      Updated: ${data.updatedAt}
+      Order ID: ${typedData.orderId}
+      New Status: ${typedData.status}
+      Updated: ${typedData.updatedAt}
       
-      ${data.message || ''}
+      ${typedData.message || ''}
       
-      ${data.reviewPrompt ? "Once you receive your delivery, please come back and leave a review for your purchase. Your feedback helps us improve." : ''}
+      ${typedData.reviewPrompt ? "Once you receive your delivery, please come back and leave a review for your purchase. Your feedback helps us improve." : ''}
     `,
-  }),
+    };
+  },
 
-  password_reset: (data) => ({
-    html: `
+  password_reset: (data: EmailTemplateData) => {
+    const typedData = data as { customerName?: string; resetLink?: string };
+    return {
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d4af37;">Password Reset Request</h2>
-        <p>Dear ${data.customerName || 'User'},</p>
+        <p>Dear ${typedData.customerName || 'User'},</p>
         <p>We received a request to reset your password. Click the link below to proceed:</p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${data.resetLink}" style="background-color: #d4af37; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+          <a href="${typedData.resetLink}" style="background-color: #d4af37; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
             Reset Password
           </a>
         </div>
@@ -188,28 +212,31 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         </p>
       </div>
     `,
-    text: `
+      text: `
       Password Reset Request
       
-      Dear ${data.customerName || 'User'},
+      Dear ${typedData.customerName || 'User'},
       
       We received a request to reset your password. Click the link below to proceed:
       
-      ${data.resetLink}
+      ${typedData.resetLink}
       
       This link will expire in 24 hours.
     `,
-  }),
+    };
+  },
 
-  email_verification: (data) => ({
-    html: `
+  email_verification: (data: EmailTemplateData) => {
+    const typedData = data as { customerName?: string; verificationLink?: string };
+    return {
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #d4af37;">Verify Your Email Address</h2>
-        <p>Dear ${data.customerName || 'User'},</p>
+        <p>Dear ${typedData.customerName || 'User'},</p>
         <p>Welcome to FJ Store Pakistan! Please verify your email address to complete your registration.</p>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${data.verificationLink}" style="background-color: #d4af37; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+          <a href="${typedData.verificationLink}" style="background-color: #d4af37; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
             Verify Email
           </a>
         </div>
@@ -219,24 +246,36 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         </p>
       </div>
     `,
-    text: `
+      text: `
       Verify Your Email Address
       
-      Dear ${data.customerName || 'User'},
+      Dear ${typedData.customerName || 'User'},
       
       Welcome to FJ Store Pakistan! Please verify your email address by clicking the link below:
       
-      ${data.verificationLink}
+      ${typedData.verificationLink}
       
       This link will expire in 24 hours.
     `,
-  }),
+    };
+  },
 
-  invoice: (data) => ({
-    html: `
+  invoice: (data: EmailTemplateData) => {
+    const typedData = data as {
+      orderId?: string;
+      customerName?: string;
+      subtotal?: number;
+      shipping?: number;
+      tax?: number;
+      discount?: number;
+      grandTotal?: number;
+    };
+    const discountValue = typedData.discount ?? 0;
+    return {
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #d4af37;">Invoice for Order #${data.orderId}</h2>
-        <p>Dear ${data.customerName},</p>
+        <h2 style="color: #d4af37;">Invoice for Order #${typedData.orderId}</h2>
+        <p>Dear ${typedData.customerName},</p>
         <p>Your invoice is attached to this email.</p>
         
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
@@ -245,25 +284,25 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
             <td style="padding: 10px;"><strong>Subtotal:</strong></td>
-            <td style="padding: 10px; text-align: right;">PKR ${data.subtotal.toLocaleString()}</td>
+            <td style="padding: 10px; text-align: right;">PKR ${((typedData.subtotal ?? 0)).toLocaleString()}</td>
           </tr>
           <tr>
             <td style="padding: 10px;"><strong>Shipping:</strong></td>
-            <td style="padding: 10px; text-align: right;">PKR ${data.shipping.toLocaleString()}</td>
+            <td style="padding: 10px; text-align: right;">PKR ${((typedData.shipping ?? 0)).toLocaleString()}</td>
           </tr>
           <tr>
             <td style="padding: 10px;"><strong>Tax:</strong></td>
-            <td style="padding: 10px; text-align: right;">PKR ${data.tax.toLocaleString()}</td>
+            <td style="padding: 10px; text-align: right;">PKR ${((typedData.tax ?? 0)).toLocaleString()}</td>
           </tr>
-          ${data.discount > 0 ? `
+          ${discountValue > 0 ? `
             <tr style="background-color: #f0f0f0;">
               <td style="padding: 10px;"><strong>Discount:</strong></td>
-              <td style="padding: 10px; text-align: right;">-PKR ${data.discount.toLocaleString()}</td>
+              <td style="padding: 10px; text-align: right;">-PKR ${discountValue.toLocaleString()}</td>
             </tr>
           ` : ''}
           <tr style="background-color: #f9f9f9; border-top: 2px solid #d4af37;">
             <td style="padding: 10px; font-size: 16px;"><strong>Grand Total:</strong></td>
-            <td style="padding: 10px; text-align: right; font-size: 16px; color: #d4af37;"><strong>PKR ${data.grandTotal.toLocaleString()}</strong></td>
+            <td style="padding: 10px; text-align: right; font-size: 16px; color: #d4af37;"><strong>PKR ${((typedData.grandTotal ?? 0)).toLocaleString()}</strong></td>
           </tr>
         </table>
         
@@ -272,24 +311,25 @@ const emailTemplates: Record<string, (data: any) => { html: string; text: string
         </p>
       </div>
     `,
-    text: `
-      Invoice for Order #${data.orderId}
+      text: `
+      Invoice for Order #${typedData.orderId}
       
-      Dear ${data.customerName},
+      Dear ${typedData.customerName},
       
       Your invoice is attached to this email.
       
       Order Summary:
-      Subtotal: PKR ${data.subtotal.toLocaleString()}
-      Shipping: PKR ${data.shipping.toLocaleString()}
-      Tax: PKR ${data.tax.toLocaleString()}
-      ${data.discount > 0 ? `Discount: -PKR ${data.discount.toLocaleString()}` : ''}
+      Subtotal: PKR ${((typedData.subtotal ?? 0)).toLocaleString()}
+      Shipping: PKR ${((typedData.shipping ?? 0)).toLocaleString()}
+      Tax: PKR ${((typedData.tax ?? 0)).toLocaleString()}
+      ${discountValue > 0 ? `Discount: -PKR ${discountValue.toLocaleString()}` : ''}
       
-      Grand Total: PKR ${data.grandTotal.toLocaleString()}
+      Grand Total: PKR ${((typedData.grandTotal ?? 0)).toLocaleString()}
       
       Thank you for shopping with FJ Store Pakistan!
     `,
-  }),
+    };
+  },
 
   admin_notification: (data) => {
     const notificationType = data.notificationType;
@@ -450,8 +490,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     if (error instanceof Error) {
       console.error(`[EMAIL SERVICE] Error type: ${error.constructor.name}`);
       console.error(`[EMAIL SERVICE] Error message: ${error.message}`);
-      console.error(`[EMAIL SERVICE] Error code: ${(error as any).code}`);
-      console.error(`[EMAIL SERVICE] Error status: ${(error as any).status}`);
+      const typedError = error as Error & { code?: string; status?: string };
+      console.error(`[EMAIL SERVICE] Error code: ${typedError.code ?? "unknown"}`);
+      console.error(`[EMAIL SERVICE] Error status: ${typedError.status ?? "unknown"}`);
+    } else if (typeof error === "object" && error !== null) {
+      const typedError = error as { code?: string; status?: string };
+      console.error(`[EMAIL SERVICE] Error code: ${typedError.code ?? "unknown"}`);
+      console.error(`[EMAIL SERVICE] Error status: ${typedError.status ?? "unknown"}`);
     } else {
       console.error(`[EMAIL SERVICE] Unknown error:`, error);
     }

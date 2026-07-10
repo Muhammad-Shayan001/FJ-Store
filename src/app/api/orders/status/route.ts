@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
-import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
+import { sendEmail } from "@/lib/services/emailService";
 
 const ADMIN_ALLOWED_STATUSES = [
   "Pending",
@@ -93,17 +93,22 @@ export async function POST(request: Request) {
     }
 
     let customerEmail = "";
-    if (serviceSupabase && order.user_id) {
-      const { data: userDetails, error: userDetailsError } = await serviceSupabase
-        .from("auth.users")
-        .select("email")
-        .eq("id", order.user_id)
-        .single();
+    if (order.user_id) {
+      const userDetailsClient = serviceSupabase || authSupabase;
+      try {
+        const { data: userDetails, error: userDetailsError } = await userDetailsClient
+          .from("auth.users")
+          .select("email")
+          .eq("id", order.user_id)
+          .single();
 
-      if (!userDetailsError && userDetails?.email) {
-        customerEmail = userDetails.email;
-      } else if (userDetailsError) {
-        console.warn("[ORDER STATUS API] Unable to retrieve buyer email from auth.users:", userDetailsError.message);
+        if (!userDetailsError && userDetails?.email) {
+          customerEmail = userDetails.email;
+        } else if (userDetailsError) {
+          console.warn("[ORDER STATUS API] Unable to retrieve buyer email from auth.users:", userDetailsError.message);
+        }
+      } catch (fetchError) {
+        console.warn("[ORDER STATUS API] Failed to retrieve buyer email from auth.users:", fetchError);
       }
     }
 
@@ -154,20 +159,40 @@ export async function POST(request: Request) {
       });
     }
 
-    const customerName = order.user?.full_name || (user.user_metadata as any)?.full_name || "Valued Customer";
+    const customerName = order.user?.full_name || ((user.user_metadata as { full_name?: string })?.full_name) || "Valued Customer";
 
-    if (newStatus === "Delivered") {
+    if (newStatus === "Delivered" || newStatus === "Received") {
       if (emailAddress) {
-        await sendOrderStatusUpdateEmail(
-          emailAddress,
-          customerName,
-          orderId,
-          newStatus,
-          "Your order has been delivered. Once you receive your package, please leave a review for your purchase.",
-          true
-        );
+        const message =
+          newStatus === "Delivered"
+            ? "Your order has been delivered. Once you receive your package, please leave a review for your purchase."
+            : "Thank you for confirming receipt. We hope you enjoyed your order! Please leave a review for the products you purchased.";
+
+        const emailSent = await sendEmail({
+          to: emailAddress,
+          subject: `Order Update: ${newStatus} - Order #${orderId.substring(0, 8).toUpperCase()}`,
+          template: "order_status",
+          data: {
+            orderId: orderId.substring(0, 8).toUpperCase(),
+            status: newStatus,
+            customerName,
+            message,
+            reviewPrompt: true,
+            updatedAt: new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        });
+
+        if (!emailSent) {
+          console.warn("[ORDER STATUS API] Email service failed to send status update to", emailAddress);
+        }
       } else {
-        console.warn("[ORDER STATUS API] Delivered email was skipped because no customer email was found.");
+        console.warn("[ORDER STATUS API] Status email was skipped because no customer email was found.");
       }
     }
 

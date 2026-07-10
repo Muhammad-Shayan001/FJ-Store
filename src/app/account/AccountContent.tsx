@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/lib/store/useAuthStore";
 import { useRouter } from "next/navigation";
@@ -21,15 +22,75 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 
+type ProductReference = {
+  name?: string;
+  slug?: string;
+  categories?: { slug?: string };
+  subcategories?: { slug?: string };
+  product_images?: { url: string }[];
+};
+
+type OrderItem = {
+  id: string;
+  quantity: number;
+  price_at_time: number | string;
+  products?: ProductReference;
+  product_variants?: { name?: string; value?: string };
+};
+
+type Order = {
+  id: string;
+  created_at: string;
+  total: number | string;
+  subtotal: number | string;
+  shipping_cost: number | string;
+  tax: number | string;
+  discount: number | string;
+  status: string;
+  order_items: OrderItem[];
+  addresses?: Address;
+};
+
+type Address = {
+  id: string;
+  title?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  is_default?: boolean;
+};
+
+type WishlistItem = {
+  id: string;
+  products?: {
+    name?: string;
+    sale_price?: number;
+    regular_price?: number;
+    product_images?: { url: string }[];
+  };
+};
+
+type ReviewItem = {
+  id: string;
+  is_approved?: boolean;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  products?: { name?: string };
+};
+
 export default function AccountContent() {
   const { user, signOut } = useAuthStore();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<{ full_name?: string; phone?: string } | null>(null);
   
   // Data States
-  const [orders, setOrders] = useState<any[]>([]);
-  const [addresses, setAddresses] = useState<any[]>([]);
-  const [wishlist, setWishlist] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   
   // UI States
   const [loading, setLoading] = useState(true);
@@ -60,7 +121,7 @@ export default function AccountContent() {
       // Fetch Orders
       const { data: ordersData } = await supabase
         .from("orders")
-        .select("*, order_items(*, products(name))")
+        .select("*, order_items(*, products(name, slug, categories (slug), subcategories (slug)), product_variants (name, value))")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (ordersData) setOrders(ordersData);
@@ -322,6 +383,22 @@ export default function AccountContent() {
                               {order.order_items.length} items • ${Number(order.total).toFixed(2)}
                             </p>
                             <Badge variant="outline">{order.status}</Badge>
+                            {order.status === "Received" && order.order_items?.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {order.order_items.map((item: OrderItem) => {
+                                  const product = item.products;
+                                  const productUrl = product?.slug && product?.categories?.slug && product?.subcategories?.slug
+                                    ? `/shop/${product.categories.slug}/${product.subcategories.slug}/${product.slug}`
+                                    : null;
+
+                                  return productUrl ? (
+                                    <Link key={item.id} href={productUrl} className="inline-flex items-center gap-2 rounded-full border border-accent-gold bg-accent-gold/10 px-3 py-1 text-xs font-semibold text-accent-gold hover:bg-accent-gold/20">
+                                      Leave Review for {product.name}
+                                    </Link>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
                           </div>
                           <Link href={`/account/orders/${order.id}`}>
                             <Button variant="secondary" size="sm" className="gap-2">
@@ -396,9 +473,15 @@ export default function AccountContent() {
                     <div className="grid sm:grid-cols-2 gap-4">
                       {wishlist.map((item) => (
                         <div key={item.id} className="flex gap-4 p-4 border border-border rounded-xl bg-surface">
-                          <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden shrink-0">
+                          <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden shrink-0 relative">
                             {item.products?.product_images?.[0] ? (
-                              <img src={item.products.product_images[0].url} alt="" className="w-full h-full object-cover" />
+                              <Image
+                                src={item.products.product_images[0].url}
+                                alt={item.products.name || "Wishlist item"}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-muted"><Package size={24} /></div>
                             )}

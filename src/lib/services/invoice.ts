@@ -2,6 +2,37 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+async function loadLogoDataUrl(): Promise<string | null> {
+  try {
+    const response = await fetch("/logo-of-OS.png");
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn("[PDF] Failed to load logo for PDF header:", error);
+    return null;
+  }
+}
+
+function drawBackgroundPattern(doc: jsPDF, width: number, height: number) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(42);
+  doc.setTextColor(230);
+
+  for (let x = -40; x < width + 40; x += 50) {
+    for (let y = 30; y < height + 40; y += 50) {
+      doc.text("FJ", x, y, { angle: -35 });
+    }
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(40);
+}
+
 export interface InvoiceData {
   orderId: string;
   orderDate: string;
@@ -75,35 +106,47 @@ export const generateAndDownloadInvoice = async (
 ) => {
   console.log("[INVOICE] Generating invoice PDF for Order", data.orderId);
   const doc = new jsPDF();
+  const width = doc.internal.pageSize.getWidth();
+  const height = doc.internal.pageSize.getHeight();
+
+  doc.setFillColor(250, 248, 242);
+  doc.rect(0, 0, width, height, "F");
+  drawBackgroundPattern(doc, width, height);
+
+  doc.setFillColor(212, 175, 55);
+  doc.rect(0, 0, width, 38, "F");
+
+  const logoDataUrl = await loadLogoDataUrl();
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", 14, 8, 24, 24);
+  }
+
+  doc.setFontSize(18);
+  doc.setTextColor(255);
+  doc.text("FJ Store", 42, 20);
+  doc.setFontSize(9);
+  doc.text("Premium Fashion & Accessories", 42, 27);
 
   doc.setFontSize(22);
   doc.setTextColor(40);
-  doc.text("FJ Store", 14, 20);
+  doc.text("INVOICE", 150, 28, { align: "right" });
 
   doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text("Premium Fashion & Accessories", 14, 26);
-
-  doc.setFontSize(20);
-  doc.setTextColor(40);
-  doc.text("INVOICE", 150, 20);
-
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(`Invoice No: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 150, 28);
-  doc.text(`Order Date: ${new Date(data.orderDate).toLocaleDateString()}`, 150, 34);
-  doc.text(`Status: ${data.status}`, 150, 40);
+  doc.setTextColor(110);
+  doc.text(`Invoice No: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 150, 36, { align: "right" });
+  doc.text(`Order Date: ${new Date(data.orderDate).toLocaleDateString()}`, 150, 42, { align: "right" });
+  doc.text(`Status: ${data.status}`, 150, 48, { align: "right" });
 
   doc.setFontSize(12);
   doc.setTextColor(40);
-  doc.text("Billed To:", 14, 45);
+  doc.text("Billed To:", 14, 48);
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(data.customerName, 14, 52);
-  doc.text(data.customerEmail, 14, 58);
+  doc.text(data.customerName, 14, 56);
+  doc.text(data.customerEmail, 14, 62);
 
   const splitAddress = doc.splitTextToSize(data.shippingAddress, 80);
-  doc.text(splitAddress, 14, 64);
+  doc.text(splitAddress, 14, 68);
 
   const tableData = data.items.map((item) => [
     item.name,
@@ -127,7 +170,13 @@ export const generateAndDownloadInvoice = async (
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  interface InvoiceJsPDF extends jsPDF {
+    lastAutoTable?: {
+      finalY: number;
+    };
+  }
+
+  const finalY = ((doc as InvoiceJsPDF).lastAutoTable?.finalY ?? 0) + 10;
 
   doc.setFontSize(10);
   doc.setTextColor(40);
@@ -170,58 +219,67 @@ export const generateAndDownloadDeliverySlip = async (
 ) => {
   console.log("[DELIVERY SLIP] Generating delivery slip PDF for Order", data.orderId);
   const doc = new jsPDF({ unit: "mm", format: "a5" });
+  const width = doc.internal.pageSize.getWidth();
+  const height = doc.internal.pageSize.getHeight();
 
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.3);
-  doc.rect(10, 10, 95, 135);
+  doc.setFillColor(248, 247, 245);
+  doc.rect(0, 0, width, height, "F");
+  drawBackgroundPattern(doc, width, height);
 
-  doc.setFontSize(16);
-  doc.setTextColor(20);
-  doc.text("DELIVERY SLIP", 14, 20);
+  const logoDataUrl = await loadLogoDataUrl();
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", 14, 12, 22, 22);
+  }
+
+  doc.setFillColor(212, 175, 55);
+  doc.roundedRect(10, 10, width - 20, 16, 2, 2, "F");
+  doc.setFontSize(12);
+  doc.setTextColor(255);
+  doc.text("DELIVERY SLIP", 14, 21);
 
   doc.setFontSize(8);
-  doc.setTextColor(100);
-  doc.text("Attach this slip to the package before dispatch.", 14, 25);
-  doc.text("Keep it visible for delivery verification.", 14, 29);
+  doc.setTextColor(70);
+  doc.text("Attach this slip to the package before dispatch.", 14, 28);
+  doc.text("Keep it visible for delivery verification.", 14, 32);
 
   doc.setLineWidth(0.2);
-  doc.setDrawColor(150);
-  doc.line(14, 33, 98, 33);
+  doc.setDrawColor(140);
+  doc.line(10, 38, width - 10, 38);
 
   doc.setFontSize(10);
   doc.setTextColor(40);
-  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 14, 40);
-  doc.text(`Status: ${data.status}`, 14, 46);
-  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, 14, 52);
+  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 14, 44);
+  doc.text(`Status: ${data.status}`, 14, 50);
+  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, 14, 56);
 
   doc.setFontSize(10);
   doc.setTextColor(20);
-  doc.text("SHIP TO", 14, 63);
+  doc.text("SHIP TO", 14, 66);
   doc.setFontSize(9);
-  doc.setTextColor(60);
+  doc.setTextColor(80);
   const deliveryAddress = data.deliveryAddress || data.shippingAddress;
   const deliveryLines = doc.splitTextToSize(deliveryAddress, 80);
-  doc.text(deliveryLines, 14, 69);
+  doc.text(deliveryLines, 14, 72);
 
   doc.setLineWidth(0.2);
-  doc.setDrawColor(150);
-  doc.line(14, 95, 98, 95);
+  doc.setDrawColor(140);
+  doc.line(10, 100, width - 10, 100);
 
   doc.setFontSize(10);
   doc.setTextColor(20);
-  doc.text("RECIPIENT", 14, 103);
+  doc.text("RECIPIENT", 14, 108);
   doc.setFontSize(9);
-  doc.setTextColor(60);
-  doc.text(data.customerName, 14, 109);
-  doc.text(data.customerEmail, 14, 114);
+  doc.setTextColor(80);
+  doc.text(data.customerName, 14, 114);
+  doc.text(data.customerEmail, 14, 119);
 
   doc.setFontSize(10);
   doc.setTextColor(20);
-  doc.text("CONTENTS", 14, 125);
+  doc.text("CONTENTS", 14, 130);
   doc.setFontSize(9);
   const itemLines = data.items.map((item, index) => `${index + 1}. ${item.name} x${item.quantity}`);
   const contentLines = doc.splitTextToSize(itemLines.join("\n"), 80);
-  doc.text(contentLines, 14, 131);
+  doc.text(contentLines, 14, 136);
 
   doc.setFontSize(8);
   doc.setTextColor(100);
