@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 async function loadLogoDataUrl(): Promise<string | null> {
@@ -33,35 +34,45 @@ function drawBackgroundPattern(doc: jsPDF, width: number, height: number) {
   doc.setTextColor(40);
 }
 
-function drawPremiumQrStyle(doc: jsPDF, x: number, y: number, size: number) {
-  const pattern = [
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-  ];
-
-  const cellSize = size / pattern.length;
-  doc.setFillColor(40, 40, 40);
-
-  pattern.forEach((row, rowIndex) => {
-    row.forEach((value, colIndex) => {
-      if (value) {
-        doc.rect(x + colIndex * cellSize, y + rowIndex * cellSize, cellSize, cellSize, "F");
-      }
+async function generateQrCodeDataUrl(value: string, size: number) {
+  try {
+    return await QRCode.toDataURL(value, {
+      margin: 0,
+      width: size * 8,
+      color: {
+        dark: "#111111",
+        light: "#FFFFFF",
+      },
     });
-  });
+  } catch (error) {
+    console.warn("[PDF] QR code generation failed:", error);
+    return null;
+  }
+}
+
+async function drawQrCode(doc: jsPDF, x: number, y: number, size: number, value: string) {
+  const qrDataUrl = await generateQrCodeDataUrl(value, size);
+
+  if (!qrDataUrl) {
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(x, y, size, size, 1, 1, "F");
+    doc.setDrawColor(40, 40, 40);
+    doc.roundedRect(x, y, size, size, 1, 1, "S");
+    doc.setFontSize(4);
+    doc.setTextColor(40, 40, 40);
+    doc.text("QR", x + size / 2, y + size / 2 + 1, { align: "center" });
+    return;
+  }
+
+  doc.addImage(qrDataUrl, "PNG", x, y, size, size);
+}
+
+function buildOrderTrackingUrl(orderId: string) {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/account/orders/${orderId}`;
+  }
+
+  return `https://fjstore.com/account/orders/${orderId}`;
 }
 
 function triggerPdfDownload(doc: jsPDF, fileName: string) {
@@ -301,14 +312,15 @@ export const generateAndDownloadInvoice = async (
   doc.setLineWidth(0.4);
   doc.line(margin, 270, width - margin, 270);
 
-  drawPremiumQrStyle(doc, margin, 276, 16);
+  const trackingUrl = buildOrderTrackingUrl(data.orderId);
+  await drawQrCode(doc, margin, 276, 16, trackingUrl);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...darkColor);
-  doc.text("Verified Order", margin + 20, 280);
+  doc.text("Track this order", margin + 20, 280);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(130);
-  doc.text("Scan-ready proof of purchase for your records.", margin + 20, 285);
+  doc.text("Scan the QR code to open the order details.", margin + 20, 285);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -330,10 +342,10 @@ export const generateAndDownloadDeliverySlip = async (
   supabase: SupabaseClient
 ) => {
   console.log("[DELIVERY SLIP] Generating delivery slip PDF for Order", data.orderId);
-  const doc = new jsPDF({ unit: "mm", format: "a5" });
+  const doc = new jsPDF({ unit: "mm", format: [105, 148] });
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = 6;
   const accentColor = [212, 175, 55] as [number, number, number];
   const darkColor = [40, 40, 40] as [number, number, number];
   const mutedColor = [95, 95, 95] as [number, number, number];
@@ -343,94 +355,79 @@ export const generateAndDownloadDeliverySlip = async (
   drawBackgroundPattern(doc, width, height);
 
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(6, 6, width - 12, 18, 2, 2, "F");
+  doc.roundedRect(4, 4, width - 8, 12, 2, 2, "F");
   doc.setFillColor(...accentColor);
-  doc.roundedRect(6, 6, width - 12, 18, 2, 2, "F");
-  doc.setFontSize(10);
+  doc.roundedRect(4, 4, width - 8, 12, 2, 2, "F");
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("DELIVERY SLIP", margin + 2, 15);
-  doc.setFontSize(6);
+  doc.text("DELIVERY SLIP", margin + 2, 10);
+  doc.setFontSize(5.2);
   doc.setFont("helvetica", "normal");
-  doc.text("Attach this slip securely to the package before dispatch.", margin + 2, 20);
+  doc.text("Compact dispatch sheet for courier handover.", margin + 2, 14);
 
   const logoDataUrl = await loadLogoDataUrl();
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", width - 20, 8, 12, 12);
+    doc.addImage(logoDataUrl, "PNG", width - 18, 5, 10, 10);
   }
 
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, 28, width - 20, 22, 2, 2, "F");
+  doc.roundedRect(margin, 20, width - 12, 18, 2, 2, "F");
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, 28, width - 20, 22, 2, 2, "S");
-  doc.setFontSize(7);
+  doc.roundedRect(margin, 20, width - 12, 18, 2, 2, "S");
+  doc.setFontSize(6);
   doc.setTextColor(...mutedColor);
-  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, margin + 3, 34);
-  doc.text(`Status: ${data.status}`, margin + 3, 39);
-  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, margin + 3, 44);
+  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, margin + 2, 26);
+  doc.text(`Status: ${data.status}`, margin + 2, 31);
+  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, margin + 2, 36);
 
   doc.setFillColor(252, 250, 244);
-  doc.roundedRect(margin, 54, width - 20, 36, 2, 2, "F");
+  doc.roundedRect(margin, 40, width - 12, 28, 2, 2, "F");
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, 54, width - 20, 36, 2, 2, "S");
+  doc.roundedRect(margin, 40, width - 12, 28, 2, 2, "S");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(6.2);
   doc.setTextColor(...darkColor);
-  doc.text("SHIP TO", margin + 3, 60);
+  doc.text("SHIP TO", margin + 2, 46);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(5.6);
   doc.setTextColor(...mutedColor);
   const deliveryAddress = data.deliveryAddress || data.shippingAddress;
-  const deliveryLines = doc.splitTextToSize(deliveryAddress, 110);
-  doc.text(deliveryLines, margin + 3, 66);
+  const deliveryLines = doc.splitTextToSize(deliveryAddress, 86);
+  doc.text(deliveryLines, margin + 2, 51);
 
   doc.setFillColor(252, 250, 244);
-  doc.roundedRect(margin, 94, width - 20, 34, 2, 2, "F");
+  doc.roundedRect(margin, 70, width - 12, 24, 2, 2, "F");
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, 94, width - 20, 34, 2, 2, "S");
+  doc.roundedRect(margin, 70, width - 12, 24, 2, 2, "S");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(6.2);
   doc.setTextColor(...darkColor);
-  doc.text("RECIPIENT", margin + 3, 100);
+  doc.text("CONTENTS", margin + 2, 76);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...mutedColor);
-  doc.text(data.customerName, margin + 3, 106);
-  doc.text(data.customerEmail, margin + 3, 111);
-
-  doc.setFillColor(252, 250, 244);
-  doc.roundedRect(margin, 132, width - 20, 40, 2, 2, "F");
-  doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, 132, width - 20, 40, 2, 2, "S");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
-  doc.setTextColor(...darkColor);
-  doc.text("CONTENTS", margin + 3, 138);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
+  doc.setFontSize(5.4);
   doc.setTextColor(...mutedColor);
   const itemLines = data.items.map((item, index) => `${index + 1}. ${item.name} x${item.quantity}`);
-  const contentLines = doc.splitTextToSize(itemLines.join("\n"), 110);
-  doc.text(contentLines, margin + 3, 144);
+  const contentLines = doc.splitTextToSize(itemLines.join("\n"), 86);
+  doc.text(contentLines, margin + 2, 81);
 
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, 176, width - 20, 20, 2, 2, "F");
+  doc.roundedRect(margin, 96, width - 12, 26, 2, 2, "F");
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, 176, width - 20, 20, 2, 2, "S");
-  doc.setFontSize(6.2);
-  doc.setTextColor(120);
-  doc.text("Courier: verify address and customer details before handover.", margin + 3, 184);
-  doc.text("If information is missing, contact FJ Store support immediately.", margin + 3, 189);
+  doc.roundedRect(margin, 96, width - 12, 26, 2, 2, "S");
+  doc.setFontSize(5.3);
+  doc.setTextColor(100);
+  doc.text("Courier: verify address and customer details before handover.", margin + 2, 102);
+  doc.text("If any detail is missing, contact support immediately.", margin + 2, 106);
 
-  doc.setDrawColor(...accentColor);
-  doc.setLineWidth(0.4);
-  doc.line(margin, 199, width - margin, 199);
-  drawPremiumQrStyle(doc, margin + 2, 202, 10);
-  doc.setFontSize(6.2);
+  const trackingUrl = buildOrderTrackingUrl(data.orderId);
+  await drawQrCode(doc, width - 28, 100, 18, trackingUrl);
+  doc.setFontSize(5.4);
   doc.setTextColor(...darkColor);
-  doc.text("Secure handover verified", margin + 14, 206);
+  doc.text("Scan to track", width - 28, 122);
+  doc.setFontSize(5);
   doc.setTextColor(120);
-  doc.text("Keep this slip with the parcel until delivery is complete.", margin + 14, 210);
+  doc.text("Order verified", width - 28, 126);
 
   await uploadAndDownloadPdf(
     doc,

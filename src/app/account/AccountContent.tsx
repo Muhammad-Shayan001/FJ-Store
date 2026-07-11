@@ -82,6 +82,9 @@ type ReviewItem = {
   products?: { name?: string };
 };
 
+const normalizeOrderStatus = (status?: string) => status?.toLowerCase().trim() || "";
+const shouldShowReviewCta = (status?: string) => normalizeOrderStatus(status) === "received";
+
 export default function AccountContent() {
   const { user, signOut } = useAuthStore();
   const [profile, setProfile] = useState<{ full_name?: string; phone?: string } | null>(null);
@@ -383,7 +386,7 @@ export default function AccountContent() {
                               {order.order_items.length} items • ${Number(order.total).toFixed(2)}
                             </p>
                             <Badge variant="outline">{order.status}</Badge>
-                            {order.status === "Received" && order.order_items?.length > 0 && (
+                            {shouldShowReviewCta(order.status) && order.order_items?.length > 0 && (
                               <div className="mt-3 space-y-2">
                                 {order.order_items.map((item: OrderItem) => {
                                   const product = item.products;

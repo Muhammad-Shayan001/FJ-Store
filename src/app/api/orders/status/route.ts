@@ -118,12 +118,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Not authorized to update this order." }, { status: 403 });
     }
 
+    const normalizedNewStatus = newStatus.toLowerCase();
+    const normalizedCurrentStatus = (order.status || "").toLowerCase();
+
     if (!isAdmin) {
       if (!USER_ALLOWED_STATUS.includes(newStatus)) {
         return NextResponse.json({ success: false, error: "Customers can only mark orders as Received." }, { status: 403 });
       }
 
-      if (!USER_ALLOWED_PREVIOUS_STATUSES.includes(order.status)) {
+      if (!USER_ALLOWED_PREVIOUS_STATUSES.some((status) => status.toLowerCase() === normalizedCurrentStatus)) {
         return NextResponse.json(
           {
             success: false,
@@ -134,7 +137,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (order.status === newStatus) {
+    if (normalizedCurrentStatus === normalizedNewStatus) {
       return NextResponse.json({ success: true, message: "Order status is already set." });
     }
 

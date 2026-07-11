@@ -8,14 +8,21 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 interface OrderItemLike {
+  id?: string;
   quantity?: number;
   price_at_time?: number | string;
-  products?: { name?: string | null } | null;
+  products?: {
+    name?: string | null;
+    slug?: string | null;
+    categories?: { slug?: string | null } | null;
+    subcategories?: { slug?: string | null } | null;
+  } | null;
   product_variants?: { name?: string; value?: string } | null;
 }
 
 interface OrderAddressLike {
   address_line_1?: string;
+  address_line_2?: string;
   city?: string;
   state?: string;
   country?: string;
@@ -46,8 +53,12 @@ const ORDER_STATUSES = [
   "Received",
 ];
 
+const normalizeOrderStatus = (status?: string) => status?.toLowerCase().trim() || "";
+
 const getStatusIndex = (status: string) => {
-  return ORDER_STATUSES.indexOf(status);
+  const normalized = normalizeOrderStatus(status);
+  const matchedIndex = ORDER_STATUSES.findIndex((value) => normalizeOrderStatus(value) === normalized);
+  return matchedIndex >= 0 ? matchedIndex : 0;
 };
 
 export default function OrderTrackingClient({ 
@@ -61,8 +72,9 @@ export default function OrderTrackingClient({
 }) {
   const [status, setStatus] = useState(order.status);
   const [markingReceived, setMarkingReceived] = useState(false);
+  const normalizedStatus = normalizeOrderStatus(status);
   const currentIndex = getStatusIndex(status);
-  const isCancelled = status === "Cancelled" || status === "Returned";
+  const isCancelled = normalizedStatus === "cancelled" || normalizedStatus === "returned";
   const supabase = createBrowserClient();
 
   const addressStr = order.addresses
@@ -79,10 +91,10 @@ export default function OrderTrackingClient({
       ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
       : addressStr,
     items: (order.order_items || []).map((item: OrderItemLike) => ({
-      name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
-      quantity: item.quantity,
-      price: Number(item.price_at_time),
-      total: Number(item.price_at_time) * item.quantity,
+      name: `${item.products?.name || "Product"} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
+      quantity: Number(item.quantity || 0),
+      price: Number(item.price_at_time || 0),
+      total: Number(item.price_at_time || 0) * Number(item.quantity || 0),
     })),
     subtotal: Number(order.subtotal),
     tax: Number(order.tax),
@@ -182,7 +194,7 @@ export default function OrderTrackingClient({
                 </div>
               </div>
 
-                      {status === "Delivered" && (
+                      {normalizedStatus === "delivered" && (
                 <div className="mb-4 rounded-2xl border border-border bg-surface/70 p-5 text-sm text-foreground dark:text-foreground">
                   <p className="font-semibold mb-2">Confirm receipt</p>
                   <p className="text-muted mb-4">
@@ -217,7 +229,7 @@ export default function OrderTrackingClient({
                 </div>
               )}
 
-              {status === "Received" && (
+              {normalizedStatus === "received" && (
                 <div className="mb-4 rounded-2xl border border-accent-gold bg-accent-gold/5 p-5 text-sm text-foreground dark:text-foreground">
                   <p className="font-semibold mb-2">Thanks for confirming receipt</p>
                   <p className="text-muted mb-4">
@@ -272,8 +284,8 @@ export default function OrderTrackingClient({
                   )}
                   <p className="text-sm text-muted mt-1">Qty: {item.quantity}</p>
                 </div>
-                <div className="font-medium text-foreground dark:text-foreground dark:text-white">
-                  ${(Number(item.price_at_time) * item.quantity).toFixed(2)}
+                <div className="font-medium text-foreground">
+                  ${(Number(item.price_at_time || 0) * Number(item.quantity || 0)).toFixed(2)}
                 </div>
               </div>
             ))}
