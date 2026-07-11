@@ -62,22 +62,28 @@ const uploadAndDownloadPdf = async (
   supabase: SupabaseClient
 ) => {
   const pdfBlob = doc.output("blob");
-  const blobUrl = URL.createObjectURL(pdfBlob);
 
   try {
-    console.log("[DOCUMENT] Triggering direct browser download...");
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = downloadFileName;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    console.log("[DOCUMENT] Direct download triggered successfully.");
+    console.log("[DOCUMENT] Triggering browser download via jsPDF save...");
+    doc.save(downloadFileName);
+    console.log("[DOCUMENT] jsPDF save triggered successfully.");
   } catch (error) {
-    console.error("[DOCUMENT] Direct download failed:", error);
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    console.error("[DOCUMENT] jsPDF save failed:", error);
+
+    try {
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = downloadFileName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      console.log("[DOCUMENT] Blob download fallback triggered.");
+    } catch (fallbackError) {
+      console.error("[DOCUMENT] Blob download fallback failed:", fallbackError);
+    }
   }
 
   try {
