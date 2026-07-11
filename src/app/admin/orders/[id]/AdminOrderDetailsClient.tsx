@@ -7,7 +7,6 @@ import { ArrowLeft, RefreshCw, Printer } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { generateAndDownloadInvoice, generateAndDownloadDeliverySlip, InvoiceData } from "@/lib/services/invoice";
-import { sendOrderStatusUpdateEmail } from "@/lib/services/emailHelper";
 
 const ORDER_STATUSES = [
   "Pending",
@@ -20,7 +19,38 @@ const ORDER_STATUSES = [
   "Returned"
 ];
 
-export default function AdminOrderDetailsClient({ order }: { order: any }) {
+interface OrderItemLike {
+  id?: string;
+  quantity?: number;
+  price_at_time?: number | string;
+  products?: { name?: string | null } | null;
+  product_variants?: { name?: string; value?: string } | null;
+}
+
+interface OrderAddressLike {
+  address_line_1?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+}
+
+interface OrderLike {
+  id: string;
+  status?: string;
+  created_at: string;
+  subtotal?: number | string;
+  tax?: number | string;
+  shipping_cost?: number | string;
+  discount?: number | string;
+  total?: number | string;
+  user_id?: string;
+  addresses?: OrderAddressLike | null;
+  order_items?: OrderItemLike[] | null;
+  user?: { full_name?: string | null; email?: string | null } | null;
+}
+
+export default function AdminOrderDetailsClient({ order }: { order: OrderLike }) {
   const safeOrder = order || {};
   const [status, setStatus] = useState(safeOrder.status || "Pending");
   const [loading, setLoading] = useState(false);
@@ -62,7 +92,7 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
     customerEmail: safeOrder.user?.email || "",
     shippingAddress: addressStr,
     deliveryAddress: addressStr,
-    items: (safeOrder.order_items || []).map((item: any) => ({
+    items: (safeOrder.order_items || []).map((item: OrderItemLike) => ({
       name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
       quantity: item.quantity || 0,
       price: Number(item.price_at_time || 0),
@@ -103,14 +133,30 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={handleDownloadInvoice} className="gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDownloadInvoice();
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover-bg"
+          >
             <Printer size={16} />
             Download Invoice
-          </Button>
-          <Button variant="secondary" onClick={handleDownloadDeliverySlip} className="gap-2">
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDownloadDeliverySlip();
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover-bg"
+          >
             <Printer size={16} />
             Download Delivery Slip
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -122,7 +168,7 @@ export default function AdminOrderDetailsClient({ order }: { order: any }) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {(safeOrder.order_items || []).map((item: any) => (
+                {(safeOrder.order_items || []).map((item: OrderItemLike) => (
                   <div key={item.id} className="flex justify-between items-center py-2 border-b border-border dark:border-border/50 last:border-0">
                     <div>
                       <p className="font-medium text-foreground dark:text-foreground dark:text-white">{item.products?.name}</p>

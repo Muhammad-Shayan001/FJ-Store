@@ -1,11 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from "@/components/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button } from "@/components/ui";
 import { Download, Package, Truck, CheckCircle, Clock } from "lucide-react";
 import { generateAndDownloadInvoice, generateAndDownloadDeliverySlip, InvoiceData } from "@/lib/services/invoice";
 import { createBrowserClient } from "@/lib/supabase/client";
 import Link from "next/link";
+
+interface OrderItemLike {
+  quantity?: number;
+  price_at_time?: number | string;
+  products?: { name?: string | null } | null;
+  product_variants?: { name?: string; value?: string } | null;
+}
+
+interface OrderAddressLike {
+  address_line_1?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+}
+
+interface OrderLike {
+  id: string;
+  status: string;
+  created_at: string;
+  subtotal?: number | string;
+  tax?: number | string;
+  shipping_cost?: number | string;
+  discount?: number | string;
+  total?: number | string;
+  user_id?: string;
+  addresses?: OrderAddressLike | null;
+  order_items?: OrderItemLike[] | null;
+}
 
 const ORDER_STATUSES = [
   "Pending",
@@ -26,9 +55,9 @@ export default function OrderTrackingClient({
   customerName, 
   customerEmail 
 }: { 
-  order: any, 
-  customerName: string, 
-  customerEmail: string 
+  order: OrderLike;
+  customerName: string;
+  customerEmail: string;
 }) {
   const [status, setStatus] = useState(order.status);
   const [markingReceived, setMarkingReceived] = useState(false);
@@ -49,7 +78,7 @@ export default function OrderTrackingClient({
     deliveryAddress: order.addresses
       ? `${order.addresses.address_line_1}, ${order.addresses.city}, ${order.addresses.state || ""} ${order.addresses.country} ${order.addresses.postal_code || ""}`
       : addressStr,
-    items: order.order_items.map((item: any) => ({
+    items: (order.order_items || []).map((item: OrderItemLike) => ({
       name: `${item.products?.name} ${item.product_variants ? `(${item.product_variants.name}: ${item.product_variants.value})` : ""}`,
       quantity: item.quantity,
       price: Number(item.price_at_time),
@@ -79,16 +108,34 @@ export default function OrderTrackingClient({
           <p className="text-muted mt-1">Order #{order.id.substring(0, 8).toUpperCase()}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={handleDownloadInvoice} className="gap-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDownloadInvoice();
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-surface/50 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover-bg"
+          >
             <Download size={18} />
             Download Invoice
-          </Button>
-          <Button variant="secondary" onClick={handleDownloadDeliverySlip} className="gap-2">
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleDownloadDeliverySlip();
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover-bg"
+          >
             <Download size={18} />
             Download Delivery Slip
-          </Button>
+          </button>
           <Link href="/account">
-            <Button variant="ghost">Back to Account</Button>
+            <button type="button" className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover-bg">
+              Back to Account
+            </button>
           </Link>
         </div>
       </div>
@@ -177,7 +224,7 @@ export default function OrderTrackingClient({
                     Your order is now marked as <strong>Received</strong>. Please leave a review for the products you purchased.
                   </p>
                   <div className="grid gap-3">
-                    {order.order_items.map((item: any) => {
+                    {(order.order_items || []).map((item: OrderItemLike) => {
                       const product = item.products;
                       const productUrl = product?.slug && product?.categories?.slug && product?.subcategories?.slug
                         ? `/shop/${product.categories.slug}/${product.subcategories.slug}/${product.slug}`
@@ -214,7 +261,7 @@ export default function OrderTrackingClient({
             <CardTitle>Items</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.order_items.map((item: any) => (
+            {(order.order_items || []).map((item: OrderItemLike) => (
               <div key={item.id} className="flex justify-between items-center py-3 border-b border-border dark:border-border/50 last:border-0">
                 <div>
                   <p className="font-medium text-foreground dark:text-foreground dark:text-white">{item.products?.name}</p>

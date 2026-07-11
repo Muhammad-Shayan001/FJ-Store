@@ -33,6 +33,65 @@ function drawBackgroundPattern(doc: jsPDF, width: number, height: number) {
   doc.setTextColor(40);
 }
 
+function drawPremiumQrStyle(doc: jsPDF, x: number, y: number, size: number) {
+  const pattern = [
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+  ];
+
+  const cellSize = size / pattern.length;
+  doc.setFillColor(40, 40, 40);
+
+  pattern.forEach((row, rowIndex) => {
+    row.forEach((value, colIndex) => {
+      if (value) {
+        doc.rect(x + colIndex * cellSize, y + rowIndex * cellSize, cellSize, cellSize, "F");
+      }
+    });
+  });
+}
+
+function triggerPdfDownload(doc: jsPDF, fileName: string) {
+  if (typeof window === "undefined") return;
+
+  const pdfBlob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(pdfBlob);
+
+  try {
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    const popup = window.open(blobUrl, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      window.location.href = blobUrl;
+    }
+  } catch (error) {
+    console.error("[DOCUMENT] PDF download trigger failed:", error);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  }
+}
+
 export interface InvoiceData {
   orderId: string;
   orderDate: string;
@@ -64,26 +123,11 @@ const uploadAndDownloadPdf = async (
   const pdfBlob = doc.output("blob");
 
   try {
-    console.log("[DOCUMENT] Triggering browser download via jsPDF save...");
-    doc.save(downloadFileName);
-    console.log("[DOCUMENT] jsPDF save triggered successfully.");
+    console.log("[DOCUMENT] Triggering browser download...");
+    triggerPdfDownload(doc, downloadFileName);
+    console.log("[DOCUMENT] Browser download trigger executed.");
   } catch (error) {
-    console.error("[DOCUMENT] jsPDF save failed:", error);
-
-    try {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = downloadFileName;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-      console.log("[DOCUMENT] Blob download fallback triggered.");
-    } catch (fallbackError) {
-      console.error("[DOCUMENT] Blob download fallback failed:", fallbackError);
-    }
+    console.error("[DOCUMENT] Browser download trigger failed:", error);
   }
 
   try {
