@@ -108,45 +108,79 @@ export const generateAndDownloadInvoice = async (
   const doc = new jsPDF();
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const accentColor = [212, 175, 55] as [number, number, number];
+  const darkColor = [40, 40, 40] as [number, number, number];
+  const mutedColor = [95, 95, 95] as [number, number, number];
 
   doc.setFillColor(250, 248, 242);
   doc.rect(0, 0, width, height, "F");
   drawBackgroundPattern(doc, width, height);
 
-  doc.setFillColor(212, 175, 55);
-  doc.rect(0, 0, width, 38, "F");
+  doc.setFillColor(252, 250, 244);
+  doc.roundedRect(10, 10, width - 20, 34, 2, 2, "F");
+  doc.setDrawColor(...accentColor);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(10, 10, width - 20, 34, 2, 2, "S");
 
   const logoDataUrl = await loadLogoDataUrl();
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", 14, 8, 24, 24);
+    doc.addImage(logoDataUrl, "PNG", 14, 12, 24, 24);
   }
 
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.setTextColor(255);
+  doc.setTextColor(...darkColor);
   doc.text("FJ Store", 42, 20);
   doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...mutedColor);
   doc.text("Premium Fashion & Accessories", 42, 27);
 
-  doc.setFontSize(22);
-  doc.setTextColor(40);
-  doc.text("INVOICE", 150, 28, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(...accentColor);
+  doc.text("INVOICE", width - margin, 22, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...mutedColor);
+  doc.text(`Invoice No: INV-${data.orderId.substring(0, 8).toUpperCase()}`, width - margin, 31, { align: "right" });
+  doc.text(`Order Date: ${new Date(data.orderDate).toLocaleDateString()}`, width - margin, 37, { align: "right" });
 
+  doc.setDrawColor(225, 225, 225);
+  doc.setLineWidth(0.3);
+  doc.line(margin, 50, width - margin, 50);
+
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, 56, 82, 28, 2, 2, "F");
+  doc.setDrawColor(230, 230, 230);
+  doc.roundedRect(margin, 56, 82, 28, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(110);
-  doc.text(`Invoice No: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 150, 36, { align: "right" });
-  doc.text(`Order Date: ${new Date(data.orderDate).toLocaleDateString()}`, 150, 42, { align: "right" });
-  doc.text(`Status: ${data.status}`, 150, 48, { align: "right" });
+  doc.setTextColor(...darkColor);
+  doc.text("Billed To", margin + 5, 64);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...mutedColor);
+  doc.text(data.customerName, margin + 5, 71);
+  doc.text(data.customerEmail, margin + 5, 76);
+  const splitAddress = doc.splitTextToSize(data.shippingAddress, 70);
+  doc.text(splitAddress, margin + 5, 81);
 
-  doc.setFontSize(12);
-  doc.setTextColor(40);
-  doc.text("Billed To:", 14, 48);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(width - 95, 56, 81, 28, 2, 2, "F");
+  doc.setDrawColor(230, 230, 230);
+  doc.roundedRect(width - 95, 56, 81, 28, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(data.customerName, 14, 56);
-  doc.text(data.customerEmail, 14, 62);
-
-  const splitAddress = doc.splitTextToSize(data.shippingAddress, 80);
-  doc.text(splitAddress, 14, 68);
+  doc.setTextColor(...darkColor);
+  doc.text("Order Details", width - 90, 64);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...mutedColor);
+  doc.text(`Status: ${data.status}`, width - 90, 71);
+  doc.text(`Order ID: ${data.orderId.substring(0, 8).toUpperCase()}`, width - 90, 76);
+  doc.text(`Payment: Card / COD`, width - 90, 81);
 
   const tableData = data.items.map((item) => [
     item.name,
@@ -156,17 +190,17 @@ export const generateAndDownloadInvoice = async (
   ]);
 
   autoTable(doc, {
-    startY: 85,
+    startY: 95,
     head: [["Description", "Qty", "Unit Price", "Total"]],
     body: tableData,
     theme: "striped",
     headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255] },
-    styles: { fontSize: 10, cellPadding: 5 },
+    styles: { fontSize: 9, cellPadding: 4, lineColor: [225, 225, 225], lineWidth: 0.2 },
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { cellWidth: 20, halign: "center" },
-      2: { cellWidth: 30, halign: "right" },
-      3: { cellWidth: 30, halign: "right" },
+      1: { cellWidth: 18, halign: "center" },
+      2: { cellWidth: 28, halign: "right" },
+      3: { cellWidth: 28, halign: "right" },
     },
   });
 
@@ -176,32 +210,50 @@ export const generateAndDownloadInvoice = async (
     };
   }
 
-  const finalY = ((doc as InvoiceJsPDF).lastAutoTable?.finalY ?? 0) + 10;
+  const finalY = ((doc as InvoiceJsPDF).lastAutoTable?.finalY ?? 0) + 8;
 
-  doc.setFontSize(10);
-  doc.setTextColor(40);
-  doc.text("Subtotal:", 130, finalY);
-  doc.text(`PKR ${data.subtotal.toFixed(2)}`, 180, finalY, { align: "right" });
-  doc.text("Shipping:", 130, finalY + 8);
-  doc.text(`PKR ${data.shipping.toFixed(2)}`, 180, finalY + 8, { align: "right" });
-  doc.text("Tax:", 130, finalY + 16);
-  doc.text(`PKR ${data.tax.toFixed(2)}`, 180, finalY + 16, { align: "right" });
+  doc.setFillColor(252, 250, 244);
+  doc.roundedRect(112, finalY, width - 126, 34, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(112, finalY, width - 126, 34, 2, 2, "S");
+  doc.setFontSize(9);
+  doc.setTextColor(...mutedColor);
+  doc.text("Subtotal:", 120, finalY + 8);
+  doc.text(`PKR ${data.subtotal.toFixed(2)}`, width - 18, finalY + 8, { align: "right" });
+  doc.text("Shipping:", 120, finalY + 15);
+  doc.text(`PKR ${data.shipping.toFixed(2)}`, width - 18, finalY + 15, { align: "right" });
+  doc.text("Tax:", 120, finalY + 22);
+  doc.text(`PKR ${data.tax.toFixed(2)}`, width - 18, finalY + 22, { align: "right" });
 
   if (data.discount > 0) {
-    doc.text("Discount:", 130, finalY + 24);
-    doc.text(`-PKR ${data.discount.toFixed(2)}`, 180, finalY + 24, { align: "right" });
+    doc.text("Discount:", 120, finalY + 29);
+    doc.text(`-PKR ${data.discount.toFixed(2)}`, width - 18, finalY + 29, { align: "right" });
   }
 
-  const totalY = data.discount > 0 ? finalY + 32 : finalY + 24;
-  doc.setFontSize(14);
+  const totalY = data.discount > 0 ? finalY + 37 : finalY + 29;
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Grand Total:", 130, totalY);
-  doc.text(`PKR ${data.grandTotal.toFixed(2)}`, 180, totalY, { align: "right" });
+  doc.setTextColor(...darkColor);
+  doc.text("Grand Total:", 120, totalY);
+  doc.text(`PKR ${data.grandTotal.toFixed(2)}`, width - 18, totalY, { align: "right" });
 
-  doc.setFontSize(10);
+  doc.setDrawColor(...accentColor);
+  doc.setLineWidth(0.4);
+  doc.line(margin, 270, width - margin, 270);
+
+  drawPremiumQrStyle(doc, margin, 276, 16);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...darkColor);
+  doc.text("Verified Order", margin + 20, 280);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(150);
-  doc.text("Thank you for shopping with FJ Store!", 105, 280, { align: "center" });
+  doc.setTextColor(130);
+  doc.text("Scan-ready proof of purchase for your records.", margin + 20, 285);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(140);
+  doc.text("Thank you for shopping with FJ Store!", width / 2, 290, { align: "center" });
 
   await uploadAndDownloadPdf(
     doc,
@@ -221,70 +273,104 @@ export const generateAndDownloadDeliverySlip = async (
   const doc = new jsPDF({ unit: "mm", format: "a5" });
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  const accentColor = [212, 175, 55] as [number, number, number];
+  const darkColor = [40, 40, 40] as [number, number, number];
+  const mutedColor = [95, 95, 95] as [number, number, number];
 
   doc.setFillColor(248, 247, 245);
   doc.rect(0, 0, width, height, "F");
   drawBackgroundPattern(doc, width, height);
 
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(6, 6, width - 12, 18, 2, 2, "F");
+  doc.setFillColor(...accentColor);
+  doc.roundedRect(6, 6, width - 12, 18, 2, 2, "F");
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("DELIVERY SLIP", margin + 2, 15);
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.text("Attach this slip securely to the package before dispatch.", margin + 2, 20);
+
   const logoDataUrl = await loadLogoDataUrl();
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", 14, 12, 22, 22);
+    doc.addImage(logoDataUrl, "PNG", width - 20, 8, 12, 12);
   }
 
-  doc.setFillColor(212, 175, 55);
-  doc.roundedRect(10, 10, width - 20, 16, 2, 2, "F");
-  doc.setFontSize(12);
-  doc.setTextColor(255);
-  doc.text("DELIVERY SLIP", 14, 21);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, 28, width - 20, 22, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(margin, 28, width - 20, 22, 2, 2, "S");
+  doc.setFontSize(7);
+  doc.setTextColor(...mutedColor);
+  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, margin + 3, 34);
+  doc.text(`Status: ${data.status}`, margin + 3, 39);
+  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, margin + 3, 44);
 
-  doc.setFontSize(8);
-  doc.setTextColor(70);
-  doc.text("Attach this slip to the package before dispatch.", 14, 28);
-  doc.text("Keep it visible for delivery verification.", 14, 32);
-
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(140);
-  doc.line(10, 38, width - 10, 38);
-
-  doc.setFontSize(10);
-  doc.setTextColor(40);
-  doc.text(`Order: INV-${data.orderId.substring(0, 8).toUpperCase()}`, 14, 44);
-  doc.text(`Status: ${data.status}`, 14, 50);
-  doc.text(`Date: ${new Date(data.orderDate).toLocaleDateString()}`, 14, 56);
-
-  doc.setFontSize(10);
-  doc.setTextColor(20);
-  doc.text("SHIP TO", 14, 66);
-  doc.setFontSize(9);
-  doc.setTextColor(80);
+  doc.setFillColor(252, 250, 244);
+  doc.roundedRect(margin, 54, width - 20, 36, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(margin, 54, width - 20, 36, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...darkColor);
+  doc.text("SHIP TO", margin + 3, 60);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...mutedColor);
   const deliveryAddress = data.deliveryAddress || data.shippingAddress;
-  const deliveryLines = doc.splitTextToSize(deliveryAddress, 80);
-  doc.text(deliveryLines, 14, 72);
+  const deliveryLines = doc.splitTextToSize(deliveryAddress, 110);
+  doc.text(deliveryLines, margin + 3, 66);
 
-  doc.setLineWidth(0.2);
-  doc.setDrawColor(140);
-  doc.line(10, 100, width - 10, 100);
+  doc.setFillColor(252, 250, 244);
+  doc.roundedRect(margin, 94, width - 20, 34, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(margin, 94, width - 20, 34, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...darkColor);
+  doc.text("RECIPIENT", margin + 3, 100);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...mutedColor);
+  doc.text(data.customerName, margin + 3, 106);
+  doc.text(data.customerEmail, margin + 3, 111);
 
-  doc.setFontSize(10);
-  doc.setTextColor(20);
-  doc.text("RECIPIENT", 14, 108);
-  doc.setFontSize(9);
-  doc.setTextColor(80);
-  doc.text(data.customerName, 14, 114);
-  doc.text(data.customerEmail, 14, 119);
-
-  doc.setFontSize(10);
-  doc.setTextColor(20);
-  doc.text("CONTENTS", 14, 130);
-  doc.setFontSize(9);
+  doc.setFillColor(252, 250, 244);
+  doc.roundedRect(margin, 132, width - 20, 40, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(margin, 132, width - 20, 40, 2, 2, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...darkColor);
+  doc.text("CONTENTS", margin + 3, 138);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...mutedColor);
   const itemLines = data.items.map((item, index) => `${index + 1}. ${item.name} x${item.quantity}`);
-  const contentLines = doc.splitTextToSize(itemLines.join("\n"), 80);
-  doc.text(contentLines, 14, 136);
+  const contentLines = doc.splitTextToSize(itemLines.join("\n"), 110);
+  doc.text(contentLines, margin + 3, 144);
 
-  doc.setFontSize(8);
-  doc.setTextColor(100);
-  doc.text("Courier: verify address and customer details before handover.", 14, 170);
-  doc.text("If information is missing, contact FJ Store support immediately.", 14, 175);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, 176, width - 20, 20, 2, 2, "F");
+  doc.setDrawColor(225, 225, 225);
+  doc.roundedRect(margin, 176, width - 20, 20, 2, 2, "S");
+  doc.setFontSize(6.2);
+  doc.setTextColor(120);
+  doc.text("Courier: verify address and customer details before handover.", margin + 3, 184);
+  doc.text("If information is missing, contact FJ Store support immediately.", margin + 3, 189);
+
+  doc.setDrawColor(...accentColor);
+  doc.setLineWidth(0.4);
+  doc.line(margin, 199, width - margin, 199);
+  drawPremiumQrStyle(doc, margin + 2, 202, 10);
+  doc.setFontSize(6.2);
+  doc.setTextColor(...darkColor);
+  doc.text("Secure handover verified", margin + 14, 206);
+  doc.setTextColor(120);
+  doc.text("Keep this slip with the parcel until delivery is complete.", margin + 14, 210);
 
   await uploadAndDownloadPdf(
     doc,
