@@ -61,42 +61,52 @@ const uploadAndDownloadPdf = async (
   downloadFileName: string,
   supabase: SupabaseClient
 ) => {
-  console.log("[DOCUMENT] Converting to ArrayBuffer...");
-  const pdfBuffer = doc.output("arraybuffer");
+  const pdfBlob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(pdfBlob);
 
-  console.log(`[DOCUMENT] Uploading to Supabase Storage: documents/${filePath}`);
-  const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, pdfBuffer, {
-    contentType: "application/pdf",
-    upsert: true,
-  });
-
-  if (uploadError) {
-    console.error("[DOCUMENT] Upload Failed:", uploadError);
-    console.log("[DOCUMENT] Falling back to local save...");
-    doc.save(downloadFileName);
-    return;
+  try {
+    console.log("[DOCUMENT] Triggering direct browser download...");
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = downloadFileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log("[DOCUMENT] Direct download triggered successfully.");
+  } catch (error) {
+    console.error("[DOCUMENT] Direct download failed:", error);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
   }
 
-  console.log("[DOCUMENT] Creating signed URL...");
-  const { data: signedData, error: signedError } = await supabase
-    .storage
-    .from("documents")
-    .createSignedUrl(filePath, 60);
+  try {
+    console.log(`[DOCUMENT] Uploading to Supabase Storage: documents/${filePath}`);
+    const { error: uploadError } = await supabase.storage.from("documents").upload(filePath, pdfBlob, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
 
-  if (signedError || !signedData?.signedUrl) {
-    console.error("[DOCUMENT] Signed URL Generation Failed:", signedError);
-    doc.save(downloadFileName);
-    return;
+    if (uploadError) {
+      console.warn("[DOCUMENT] Upload failed, but browser download already completed:", uploadError);
+      return;
+    }
+
+    console.log("[DOCUMENT] Creating signed URL...");
+    const { data: signedData, error: signedError } = await supabase
+      .storage
+      .from("documents")
+      .createSignedUrl(filePath, 60);
+
+    if (signedError || !signedData?.signedUrl) {
+      console.warn("[DOCUMENT] Signed URL generation failed:", signedError);
+      return;
+    }
+
+    console.log("[DOCUMENT] Upload and signed URL created successfully.");
+  } catch (error) {
+    console.warn("[DOCUMENT] Storage upload flow failed after download fallback:", error);
   }
-
-  console.log("[DOCUMENT] Triggering HTTPS download via Signed URL");
-  const link = document.createElement("a");
-  link.href = signedData.signedUrl;
-  link.download = downloadFileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  console.log("[DOCUMENT] Download complete.");
 };
 
 export const generateAndDownloadInvoice = async (
