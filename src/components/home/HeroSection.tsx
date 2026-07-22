@@ -48,13 +48,13 @@ export function HeroSection() {
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <Link href="/shop" className="relative group inline-block w-full sm:w-auto">
                 <div className="absolute -inset-1 rounded-xl bg-linear-to-r from-accent-gold via-yellow-400 to-accent-gold opacity-40 blur transition duration-1000 group-hover:opacity-100 group-hover:duration-200"></div>
-                <button className="relative flex w-full items-center justify-center gap-3 rounded-xl border border-accent-gold/40 bg-foreground px-10 py-4 font-medium text-background shadow-2xl transition-all hover:scale-[1.02] hover:border-accent-gold sm:w-auto">
+                <div className="relative flex w-full items-center justify-center gap-3 rounded-xl border border-accent-gold/40 bg-foreground px-10 py-4 font-medium text-background shadow-2xl transition-all hover:scale-[1.02] hover:border-accent-gold sm:w-auto">
                   Shop The Collection
                   <ArrowRight
                     size={18}
                     className="group-hover:translate-x-1 transition-transform"
                   />
-                </button>
+                </div>
               </Link>
               <Link href="/category/cosmetics" className="group text-foreground hover:text-accent-gold font-medium flex items-center gap-2 transition-colors">
                 Explore Categories

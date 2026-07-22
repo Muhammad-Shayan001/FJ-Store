@@ -81,9 +81,9 @@ export function CategoryHub() {
                   </h3>
 
                   <Link href="/shop">
-                    <button className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 border-b border-white hover:border-accent-gold pb-1 text-sm font-medium hover:text-accent-gold inline-block">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 border-b border-white hover:border-accent-gold pb-1 text-sm font-medium hover:text-accent-gold inline-block cursor-pointer">
                       Explore Now
-                    </button>
+                    </span>
                   </Link>
                 </div>
               </div>
