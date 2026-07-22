@@ -1,13 +1,15 @@
 import { HeroSection } from "@/components/home/HeroSection";
-import { WhyChooseUs } from "@/components/home/WhyChooseUs";
-import { CuratedCollections } from "@/components/home/CuratedCollections";
-import { CategoryHub } from "@/components/home/CategoryHub";
-import { FlashSale } from "@/components/home/FlashSale";
-import { BrandStory } from "@/components/home/BrandStory";
-import { Testimonials } from "@/components/home/Testimonials";
-import { FAQ } from "@/components/home/FAQ";
-import { Newsletter } from "@/components/home/Newsletter";
-import RecommendedProducts from "@/components/shop/RecommendedProducts";
+import dynamic from "next/dynamic";
+
+const WhyChooseUs = dynamic(() => import("@/components/home/WhyChooseUs").then(mod => mod.WhyChooseUs), { ssr: true });
+const CuratedCollections = dynamic(() => import("@/components/home/CuratedCollections").then(mod => mod.CuratedCollections), { ssr: true });
+const CategoryHub = dynamic(() => import("@/components/home/CategoryHub").then(mod => mod.CategoryHub), { ssr: true });
+const FlashSale = dynamic(() => import("@/components/home/FlashSale").then(mod => mod.FlashSale), { ssr: true });
+const BrandStory = dynamic(() => import("@/components/home/BrandStory").then(mod => mod.BrandStory), { ssr: true });
+const Testimonials = dynamic(() => import("@/components/home/Testimonials").then(mod => mod.Testimonials), { ssr: true });
+const FAQ = dynamic(() => import("@/components/home/FAQ").then(mod => mod.FAQ), { ssr: true });
+const Newsletter = dynamic(() => import("@/components/home/Newsletter").then(mod => mod.Newsletter), { ssr: true });
+const RecommendedProducts = dynamic(() => import("@/components/shop/RecommendedProducts"), { ssr: true });
 
 export default function Home() {
   return (
