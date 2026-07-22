@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 export function HeroSection() {
@@ -79,10 +80,13 @@ export function HeroSection() {
               {/* Overlay gradient for depth */}
               <div className="pointer-events-none absolute inset-0 z-10 bg-linear-to-t from-background/90 via-background/20 to-transparent"></div>
               
-              <img 
+              <Image 
                 src="/Firefly Create a premium luxury animated hero video for -FJ Store – For Justice- that focuses ONLY o.gif" 
                 alt="FJ Store Premium Luxury" 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                fill
+                priority
+                unoptimized
+                className="absolute inset-0 object-cover transition-transform duration-1000 group-hover:scale-105"
               />
               
               {/* Floating badges/elements over the video to make it dynamic */}

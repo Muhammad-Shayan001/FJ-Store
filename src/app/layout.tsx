@@ -64,6 +64,10 @@ export default function RootLayout({
       className={`${inter.variable} ${jakarta.variable} ${syne.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="icon" href="/logo-of-OS.png" />
+        <link rel="apple-touch-icon" href="/logo-of-OS.png" />
+      </head>
       <body suppressHydrationWarning className="min-h-full flex flex-col text-foreground selection:bg-accent-gold selection:text-black">
         <ThemeProvider>
           <AuthProvider>
